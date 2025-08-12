@@ -1,0 +1,902 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{% block meta_description %}Bib Readers - Système de gestion de bibliothèque moderne{% endblock %}">
+    <title>{% block title %}Bib Readers{% endblock %}</title>
+    
+    <!-- CSS Framework -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .book-card {
+            transition: all 0.3s ease;
+            transform-style: preserve-3d;
+        }
+        .book-card:hover {
+            transform: translateY(-10px) rotateX(5deg);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+        .floating-label {
+            transition: all 0.2s ease;
+        }
+        .input-focused .floating-label {
+            transform: translateY(-1.5rem) scale(0.875);
+            color: #667eea;
+        }
+        .notification-popup {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            min-width: 300px;
+        }
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .sidebar-active {
+            transform: translateX(0);
+        }
+        .sidebar-inactive {
+            transform: translateX(-100%);
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo -->
+                <div class="flex items-center">
+                    <button id="mobile-menu-btn" class="md:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                    <a href="/" class="flex items-center ml-4 md:ml-0">
+                        <i class="fas fa-book-reader text-2xl text-indigo-600 mr-2"></i>
+                        <span class="font-bold text-xl text-gray-800">Bib Readers</span>
+                    </a>
+                </div>
+                
+                <!-- Search Bar -->
+                {% if not request.url.path.startswith('/login') and not request.url.path.startswith('/inscription') %}
+                <div class="hidden md:flex flex-1 max-w-lg mx-8">
+                    <div class="relative w-full">
+                        <input type="text" id="global-search" placeholder="Rechercher un livre..." 
+                               class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                        <div id="search-results" class="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 hidden z-50"></div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- User Menu -->
+                <div class="flex items-center space-x-4">
+                    {% if not request.url.path.startswith('/login') and not request.url.path.startswith('/inscription') %}
+                    <div class="relative">
+                        <button id="notifications-btn" class="p-2 text-gray-400 hover:text-gray-500 relative">
+                            <i class="fas fa-bell text-xl"></i>
+                            <span id="notification-count" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+                        </button>
+                        <div id="notifications-dropdown" class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 hidden z-50">
+                            <div class="p-4 border-b border-gray-200">
+                                <h3 class="font-medium text-gray-900">Notifications</h3>
+                            </div>
+                            <div id="notifications-list" class="max-h-64 overflow-y-auto">
+                                <div class="p-4 text-center text-gray-500">Aucune notification</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="relative">
+                        <button id="user-menu-btn" class="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100">
+                            <div class="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center">
+                                <i class="fas fa-user text-white text-sm"></i>
+                            </div>
+                            <span id="user-name" class="hidden md:block font-medium text-gray-700">Utilisateur</span>
+                            <i class="fas fa-chevron-down text-gray-400 text-sm"></i>
+                        </button>
+                        <div id="user-dropdown" class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 hidden z-50">
+                            <a href="/profil" class="block px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-t-lg">
+                                <i class="fas fa-user mr-2"></i>Mon Profil
+                            </a>
+                            <div id="admin-menu" class="hidden">
+                                <hr class="border-gray-200">
+                                <a href="/admin/gestion-livres" class="block px-4 py-2 text-gray-700 hover:bg-gray-50">
+                                    <i class="fas fa-books mr-2"></i>Gestion Livres
+                                </a>
+                                <a href="/admin/gestion-adherents" class="block px-4 py-2 text-gray-700 hover:bg-gray-50">
+                                    <i class="fas fa-users mr-2"></i>Gestion Adhérents
+                                </a>
+                                <a href="/admin/emprunts" class="block px-4 py-2 text-gray-700 hover:bg-gray-50">
+                                    <i class="fas fa-exchange-alt mr-2"></i>Emprunts
+                                </a>
+                                <a href="/admin/statistiques" class="block px-4 py-2 text-gray-700 hover:bg-gray-50">
+                                    <i class="fas fa-chart-bar mr-2"></i>Statistiques
+                                </a>
+                            </div>
+                            <hr class="border-gray-200">
+                            <button onclick="logout()" class="w-full text-left px-4 py-2 text-red-600 hover:bg-gray-50 rounded-b-lg">
+                                <i class="fas fa-sign-out-alt mr-2"></i>Déconnexion
+                            </button>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="flex space-x-2">
+                        <a href="/login" class="px-4 py-2 text-indigo-600 hover:text-indigo-700 font-medium">Se connecter</a>
+                        <a href="/inscription" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium">S'inscrire</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="md:hidden hidden border-t border-gray-200">
+            <div class="px-4 py-2 space-y-1">
+                <div class="relative">
+                    <input type="text" id="mobile-search" placeholder="Rechercher un livre..." 
+                           class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg">
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Sidebar -->
+    <div id="mobile-sidebar" class="fixed inset-0 z-40 md:hidden hidden">
+        <div class="fixed inset-0 bg-black bg-opacity-50" onclick="closeMobileSidebar()"></div>
+        <div class="fixed left-0 top-0 bottom-0 w-64 bg-white shadow-lg transform transition-transform duration-300 sidebar-inactive">
+            <div class="p-4 border-b border-gray-200">
+                <h3 class="font-medium text-gray-900">Menu</h3>
+            </div>
+            <nav class="p-4 space-y-2">
+                <a href="/" class="block px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg">
+                    <i class="fas fa-home mr-2"></i>Accueil
+                </a>
+                <a href="/recommandation-par-description" class="block px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg">
+                    <i class="fas fa-magic mr-2"></i>Recommandations
+                </a>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="flex-1">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                    <h3 class="font-bold text-lg mb-4">Bib Readers</h3>
+                    <p class="text-gray-400">Votre bibliothèque moderne et intelligente</p>
+                </div>
+                <div>
+                    <h4 class="font-medium mb-4">Liens utiles</h4>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><a href="/" class="hover:text-white">Accueil</a></li>
+                        <li><a href="/recommandation-par-description" class="hover:text-white">Recommandations</a></li>
+                        <li><a href="/profil" class="hover:text-white">Mon Profil</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-medium mb-4">Contact</h4>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><i class="fas fa-envelope mr-2"></i>contact@bibreaders.com</li>
+                        <li><i class="fas fa-phone mr-2"></i>+33 1 23 45 67 89</li>
+                    </ul>
+                </div>
+            </div>
+            <hr class="border-gray-700 my-6">
+            <div class="text-center text-gray-400">
+                <p>&copy; 2025 Bib Readers. Tous droits réservés.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Notification Toast -->
+    <div id="toast-container" class="fixed top-20 right-4 space-y-2 z-50"></div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white p-6 rounded-lg flex items-center space-x-3">
+            <div class="loading-spinner"></div>
+            <span class="text-gray-700">Chargement...</span>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/3.9.1/chart.min.js"></script>
+    <script>
+        // Configuration globale
+        const API_BASE = '/api';
+        let currentUser = null;
+        let searchTimeout = null;
+
+        // Utilitaires
+        function showLoading() {
+            document.getElementById('loading-overlay').classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading-overlay').classList.add('hidden');
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+            
+            toast.className = `${bgColor} text-white px-6 py-3 rounded-lg shadow-lg animate__animated animate__slideInRight`;
+            toast.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span>${message}</span>
+                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            
+            document.getElementById('toast-container').appendChild(toast);
+            
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.classList.add('animate__slideOutRight');
+                    setTimeout(() => toast.remove(), 500);
+                }
+            }, 5000);
+        }
+
+        // Gestion de l'authentification
+        function getAuthToken() {
+            return localStorage.getItem('access_token');
+        }
+
+        function setAuthToken(token) {
+            localStorage.setItem('access_token', token);
+        }
+
+        function removeAuthToken() {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('user_info');
+        }
+
+        function isAuthenticated() {
+            return !!getAuthToken();
+        }
+
+        function getAuthHeaders() {
+            const token = getAuthToken();
+            return token ? {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            } : {
+                'Content-Type': 'application/json'
+            };
+        }
+
+        // Gestion des requêtes API
+        async function apiCall(endpoint, options = {}) {
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, {
+                    headers: getAuthHeaders(),
+                    ...options
+                });
+                
+                if (response.status === 401) {
+                    removeAuthToken();
+                    window.location.href = '/login';
+                    return null;
+                }
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ detail: 'Erreur inconnue' }));
+                    throw new Error(errorData.detail || 'Erreur de la requête');
+                }
+                
+                return await response.json();
+            } catch (error) {
+                showToast(error.message, 'error');
+                throw error;
+            }
+        }
+
+        // Fonction de déconnexion
+        function logout() {
+            removeAuthToken();
+            showToast('Vous êtes déconnecté', 'info');
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 1000);
+        }
+
+        // Recherche globale
+        function initGlobalSearch() {
+            const searchInputs = [document.getElementById('global-search'), document.getElementById('mobile-search')];
+            const resultsContainer = document.getElementById('search-results');
+            
+            searchInputs.forEach(input => {
+                if (input) {
+                    input.addEventListener('input', function() {
+                        const query = this.value.trim();
+                        
+                        if (searchTimeout) clearTimeout(searchTimeout);
+                        
+                        if (query.length < 2) {
+                            if (resultsContainer) resultsContainer.classList.add('hidden');
+                            return;
+                        }
+                        
+                        searchTimeout = setTimeout(() => performSearch(query), 300);
+                    });
+                    
+                    input.addEventListener('focus', function() {
+                        if (this.value.trim().length >= 2 && resultsContainer) {
+                            resultsContainer.classList.remove('hidden');
+                        }
+                    });
+                    
+                    document.addEventListener('click', function(e) {
+                        if (!input.contains(e.target) && resultsContainer && !resultsContainer.contains(e.target)) {
+                            resultsContainer.classList.add('hidden');
+                        }
+                    });
+                }
+            });
+        }
+
+        async function performSearch(query) {
+            try {
+                const livres = await apiCall(`/livres?search=${encodeURIComponent(query)}`);
+                displaySearchResults(livres);
+            } catch (error) {
+                console.error('Erreur de recherche:', error);
+            }
+        }
+
+        function displaySearchResults(livres) {
+            const resultsContainer = document.getElementById('search-results');
+            if (!resultsContainer) return;
+            
+            if (livres.length === 0) {
+                resultsContainer.innerHTML = '<div class="p-4 text-gray-500">Aucun livre trouvé</div>';
+            } else {
+                resultsContainer.innerHTML = livres.slice(0, 5).map(livre => `
+                    <div class="p-3 hover:bg-gray-50 border-b border-gray-100 cursor-pointer" onclick="window.location.href='/livre/${livre.id}'">
+                        <div class="flex items-center space-x-3">
+                            <img src="${livre.image_url || '/static/images/default-book.jpg'}" alt="${livre.titre}" class="w-10 h-12 object-cover rounded">
+                            <div class="flex-1">
+                                <h4 class="font-medium text-gray-900 truncate">${livre.titre}</h4>
+                                <p class="text-sm text-gray-500">${livre.disponibilite > 0 ? 'Disponible' : 'Indisponible'}</p>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+                
+                if (livres.length > 5) {
+                    resultsContainer.innerHTML += `<div class="p-3 text-center text-indigo-600 font-medium cursor-pointer" onclick="window.location.href='/home'">Voir tous les résultats</div>`;
+                }
+            }
+            
+            resultsContainer.classList.remove('hidden');
+        }
+
+        // Gestion des notifications
+        async function loadNotifications() {
+            if (!isAuthenticated()) return;
+            
+            try {
+                const notifications = await apiCall('/notifications');
+                updateNotificationBadge(notifications);
+                displayNotifications(notifications);
+            } catch (error) {
+                console.error('Erreur chargement notifications:', error);
+            }
+        }
+
+        function updateNotificationBadge(notifications) {
+            const badge = document.getElementById('notification-count');
+            const unreadCount = notifications.filter(n => !n.lu).length;
+            
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        function displayNotifications(notifications) {
+            const container = document.getElementById('notifications-list');
+            if (!container) return;
+            
+            if (notifications.length === 0) {
+                container.innerHTML = '<div class="p-4 text-center text-gray-500">Aucune notification</div>';
+            } else {
+                container.innerHTML = notifications.map(notif => `
+                    <div class="p-4 border-b border-gray-100 ${!notif.lu ? 'bg-blue-50' : ''}" onclick="markNotificationRead(${notif.id})">
+                        <div class="flex items-start space-x-3">
+                            <div class="flex-shrink-0">
+                                <div class="w-2 h-2 bg-${!notif.lu ? 'blue' : 'gray'}-400 rounded-full mt-2"></div>
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-sm text-gray-800">${notif.message}</p>
+                                <p class="text-xs text-gray-500 mt-1">${new Date(notif.date_creation).toLocaleDateString('fr-FR')}</p>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        async function markNotificationRead(notificationId) {
+            try {
+                await apiCall(`/notifications/${notificationId}/read`, { method: 'PUT' });
+                loadNotifications();
+            } catch (error) {
+                console.error('Erreur marquage notification:', error);
+            }
+        }
+
+        // Gestion des menus déroulants
+        function initDropdowns() {
+            const userMenuBtn = document.getElementById('user-menu-btn');
+            const userDropdown = document.getElementById('user-dropdown');
+            const notifBtn = document.getElementById('notifications-btn');
+            const notifDropdown = document.getElementById('notifications-dropdown');
+
+            if (userMenuBtn && userDropdown) {
+                userMenuBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    userDropdown.classList.toggle('hidden');
+                    if (notifDropdown) notifDropdown.classList.add('hidden');
+                });
+            }
+
+            if (notifBtn && notifDropdown) {
+                notifBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    notifDropdown.classList.toggle('hidden');
+                    if (userDropdown) userDropdown.classList.add('hidden');
+                    if (!notifDropdown.classList.contains('hidden')) {
+                        loadNotifications();
+                    }
+                });
+            }
+
+            document.addEventListener('click', () => {
+                if (userDropdown) userDropdown.classList.add('hidden');
+                if (notifDropdown) notifDropdown.classList.add('hidden');
+            });
+        }
+
+        // Gestion du menu mobile
+        function initMobileMenu() {
+            const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+            const mobileMenu = document.getElementById('mobile-menu');
+            const mobileSidebar = document.getElementById('mobile-sidebar');
+
+            if (mobileMenuBtn && mobileMenu) {
+                mobileMenuBtn.addEventListener('click', () => {
+                    mobileMenu.classList.toggle('hidden');
+                });
+            }
+
+            if (mobileMenuBtn && mobileSidebar) {
+                mobileMenuBtn.addEventListener('click', () => {
+                    openMobileSidebar();
+                });
+            }
+        }
+
+        function openMobileSidebar() {
+            const sidebar = document.getElementById('mobile-sidebar');
+            const sidebarContent = sidebar.querySelector('.sidebar-inactive');
+            
+            sidebar.classList.remove('hidden');
+            setTimeout(() => {
+                sidebarContent.classList.remove('sidebar-inactive');
+                sidebarContent.classList.add('sidebar-active');
+            }, 10);
+        }
+
+        function closeMobileSidebar() {
+            const sidebar = document.getElementById('mobile-sidebar');
+            const sidebarContent = sidebar.querySelector('.sidebar-active');
+            
+            if (sidebarContent) {
+                sidebarContent.classList.remove('sidebar-active');
+                sidebarContent.classList.add('sidebar-inactive');
+            }
+            
+            setTimeout(() => {
+                sidebar.classList.add('hidden');
+            }, 300);
+        }
+
+        // Initialisation de l'utilisateur
+        async function initUser() {
+            if (!isAuthenticated()) return;
+
+            try {
+                const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+                if (userInfo.nom) {
+                    const userNameElement = document.getElementById('user-name');
+                    if (userNameElement) userNameElement.textContent = userInfo.nom;
+                    
+                    if (userInfo.role === 'admin') {
+                        const adminMenu = document.getElementById('admin-menu');
+                        if (adminMenu) adminMenu.classList.remove('hidden');
+                    }
+                }
+            } catch (error) {
+                console.error('Erreur initialisation utilisateur:', error);
+            }
+        }
+
+        // Validation des formulaires
+        function validateForm(formElement) {
+            const inputs = formElement.querySelectorAll('input[required], textarea[required], select[required]');
+            let isValid = true;
+
+            inputs.forEach(input => {
+                const errorElement = input.parentElement.querySelector('.error-message');
+                if (errorElement) errorElement.remove();
+
+                if (!input.value.trim()) {
+                    showFieldError(input, 'Ce champ est requis');
+                    isValid = false;
+                } else {
+                    // Validation spécifique par type
+                    if (input.type === 'email' && !isValidEmail(input.value)) {
+                        showFieldError(input, 'Format d\'email invalide');
+                        isValid = false;
+                    } else if (input.type === 'password' && input.value.length < 8) {
+                        showFieldError(input, 'Le mot de passe doit contenir au moins 8 caractères');
+                        isValid = false;
+                    }
+                }
+            });
+
+            return isValid;
+        }
+
+        function showFieldError(input, message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message text-red-500 text-sm mt-1';
+            errorDiv.textContent = message;
+            input.parentElement.appendChild(errorDiv);
+            input.classList.add('border-red-500');
+        }
+
+        function isValidEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+
+        // Gestion des labels flottants
+        function initFloatingLabels() {
+            const inputs = document.querySelectorAll('.floating-input');
+            
+            inputs.forEach(input => {
+                const container = input.parentElement;
+                
+                input.addEventListener('focus', () => {
+                    container.classList.add('input-focused');
+                });
+                
+                input.addEventListener('blur', () => {
+                    if (!input.value) {
+                        container.classList.remove('input-focused');
+                    }
+                });
+                
+                // Si l'input a déjà une valeur au chargement
+                if (input.value) {
+                    container.classList.add('input-focused');
+                }
+            });
+        }
+
+        // Initialisation générale
+        document.addEventListener('DOMContentLoaded', function() {
+            initGlobalSearch();
+            initDropdowns();
+            initMobileMenu();
+            initUser();
+            initFloatingLabels();
+            
+            // Charger les notifications si connecté
+            if (isAuthenticated()) {
+                loadNotifications();
+                // Recharger les notifications toutes les 30 secondes
+                setInterval(loadNotifications, 30000);
+            }
+        });
+
+        // Utilitaires pour les pages spécifiques
+        function formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString('fr-FR');
+        }
+
+        function formatDateTime(dateString) {
+            return new Date(dateString).toLocaleString('fr-FR');
+        }
+
+        function truncateText(text, maxLength = 100) {
+            if (text.length <= maxLength) return text;
+            return text.substring(0, maxLength) + '...';
+        }
+
+        // Protection CSRF basique
+        function getCSRFToken() {
+            const token = document.querySelector('meta[name="csrf-token"]');
+            return token ? token.getAttribute('content') : '';
+        }
+
+        // Gestion des erreurs globales
+        window.addEventListener('error', function(e) {
+            console.error('Erreur JavaScript:', e.error);
+        });
+
+        window.addEventListener('unhandledrejection', function(e) {
+            console.error('Promesse rejetée:', e.reason);
+            e.preventDefault();
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
+
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bib Readers - Accueil</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+    <style>
+        .hero-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .floating-book {
+            animation: float 6s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        .feature-card {
+            transition: all 0.3s ease;
+        }
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Hero Section -->
+    <section class="hero-gradient text-white py-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                <div class="animate__animated animate__fadeInLeft">
+                    <h1 class="text-5xl lg:text-6xl font-bold mb-6">
+                        Bib <span class="text-yellow-300">Readers</span>
+                    </h1>
+                    <p class="text-xl mb-8 text-gray-100">
+                        Découvrez votre prochaine lecture grâce à l'intelligence artificielle. 
+                        Une bibliothèque moderne et intuitive à votre service.
+                    </p>
+                    <div class="space-x-4">
+                        <a href="/inscription" class="inline-flex items-center px-8 py-4 bg-yellow-400 text-gray-800 font-bold rounded-lg hover:bg-yellow-300 transform hover:scale-105 transition-all duration-200">
+                            <i class="fas fa-rocket mr-2"></i>
+                            Commencer
+                        </a>
+                        <a href="/login" class="inline-flex items-center px-8 py-4 bg-transparent border-2 border-white text-white font-bold rounded-lg hover:bg-white hover:text-gray-800 transition-all duration-200">
+                            <i class="fas fa-sign-in-alt mr-2"></i>
+                            Se connecter
+                        </a>
+                    </div>
+                </div>
+                <div class="animate__animated animate__fadeInRight">
+                    <div class="relative">
+                        <div class="floating-book">
+                            <i class="fas fa-book text-8xl text-yellow-300 opacity-80"></i>
+                        </div>
+                        <div class="absolute top-4 right-4 floating-book" style="animation-delay: -2s;">
+                            <i class="fas fa-bookmark text-4xl text-white opacity-60"></i>
+                        </div>
+                        <div class="absolute bottom-4 left-4 floating-book" style="animation-delay: -4s;">
+                            <i class="fas fa-star text-3xl text-yellow-200 opacity-70"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="py-20 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-bold text-gray-800 mb-4">Pourquoi choisir Bib Readers ?</h2>
+                <p class="text-xl text-gray-600">Une expérience de lecture révolutionnaire</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="feature-card bg-gradient-to-br from-blue-50 to-indigo-100 p-8 rounded-xl shadow-lg">
+                    <div class="text-center">
+                        <div class="bg-indigo-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <i class="fas fa-brain text-2xl text-white"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">IA Recommandations</h3>
+                        <p class="text-gray-600">
+                            Notre intelligence artificielle analyse vos goûts pour vous proposer 
+                            les livres parfaits selon vos préférences.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="feature-card bg-gradient-to-br from-green-50 to-emerald-100 p-8 rounded-xl shadow-lg">
+                    <div class="text-center">
+                        <div class="bg-emerald-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <i class="fas fa-mobile-alt text-2xl text-white"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">Interface Moderne</h3>
+                        <p class="text-gray-600">
+                            Une interface élégante et responsive, optimisée pour tous vos appareils. 
+                            Naviguez facilement dans votre bibliothèque.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="feature-card bg-gradient-to-br from-purple-50 to-violet-100 p-8 rounded-xl shadow-lg">
+                    <div class="text-center">
+                        <div class="bg-violet-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <i class="fas fa-shield-alt text-2xl text-white"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">Sécurité Avancée</h3>
+                        <p class="text-gray-600">
+                            Vos données sont protégées par un système de sécurité de pointe. 
+                            Profitez en toute sérénité de nos services.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="py-20 bg-gray-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
+                <div class="animate__animated animate__fadeInUp">
+                    <div class="text-4xl font-bold text-indigo-600 mb-2">1000+</div>
+                    <div class="text-gray-600 font-medium">Livres disponibles</div>
+                </div>
+                <div class="animate__animated animate__fadeInUp" style="animation-delay: 0.1s;">
+                    <div class="text-4xl font-bold text-emerald-600 mb-2">500+</div>
+                    <div class="text-gray-600 font-medium">Membres actifs</div>
+                </div>
+                <div class="animate__animated animate__fadeInUp" style="animation-delay: 0.2s;">
+                    <div class="text-4xl font-bold text-purple-600 mb-2">95%</div>
+                    <div class="text-gray-600 font-medium">Satisfaction client</div>
+                </div>
+                <div class="animate__animated animate__fadeInUp" style="animation-delay: 0.3s;">
+                    <div class="text-4xl font-bold text-yellow-600 mb-2">24/7</div>
+                    <div class="text-gray-600 font-medium">Service disponible</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-20 bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
+        <div class="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+            <h2 class="text-4xl font-bold mb-6">Prêt à commencer votre aventure ?</h2>
+            <p class="text-xl mb-8 text-indigo-100">
+                Rejoignez des milliers de lecteurs qui ont déjà découvert leur prochaine passion
+            </p>
+            <a href="/inscription" class="inline-flex items-center px-8 py-4 bg-white text-indigo-600 font-bold rounded-lg hover:bg-gray-100 transform hover:scale-105 transition-all duration-200 text-lg">
+                <i class="fas fa-user-plus mr-3"></i>
+                Créer mon compte gratuitement
+            </a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div class="md:col-span-2">
+                    <div class="flex items-center mb-4">
+                        <i class="fas fa-book-reader text-2xl text-indigo-400 mr-3"></i>
+                        <span class="text-xl font-bold">Bib Readers</span>
+                    </div>
+                    <p class="text-gray-300 mb-4">
+                        La bibliothèque du futur, alimentée par l'intelligence artificielle 
+                        pour vous offrir une expérience de lecture personnalisée.
+                    </p>
+                    <div class="flex space-x-4">
+                        <a href="#" class="text-gray-300 hover:text-white transition-colors">
+                            <i class="fab fa-facebook text-xl"></i>
+                        </a>
+                        <a href="#" class="text-gray-300 hover:text-white transition-colors">
+                            <i class="fab fa-twitter text-xl"></i>
+                        </a>
+                        <a href="#" class="text-gray-300 hover:text-white transition-colors">
+                            <i class="fab fa-instagram text-xl"></i>
+                        </a>
+                        <a href="#" class="text-gray-300 hover:text-white transition-colors">
+                            <i class="fab fa-linkedin text-xl"></i>
+                        </a>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 class="font-bold mb-4 text-indigo-400">Services</h4>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-gray-300 hover:text-white transition-colors">Catalogue</a></li>
+                        <li><a href="#" class="text-gray-300 hover:text-white transition-colors">Recommandations</a></li>
+                        <li><a href="#" class="text-gray-300 hover:text-white transition-colors">Réservations</a></li>
+                        <li><a href="#" class="text-gray-300 hover:text-white transition-colors">Mon compte</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-bold mb-4 text-indigo-400">Contact</h4>
+                    <ul class="space-y-2 text-gray-300">
+                        <li class="flex items-center">
+                            <i class="fas fa-envelope mr-2 text-indigo-400"></i>
+                            contact@bibreaders.com
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fas fa-phone mr-2 text-indigo-400"></i>
+                            +33 1 23 45 67 89
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fas fa-map-marker-alt mr-2 text-indigo-400"></i>
+                            Paris, France
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <hr class="border-gray-700 my-8">
+            <div class="text-center text-gray-300">
+                <p>&copy; 2025 Bib Readers. Tous droits réservés. Développé avec ❤️ pour les amoureux de la lecture.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
