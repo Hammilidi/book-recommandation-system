@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}{{ livre.titre }}{% endblock %}
+{% block content %}
+<div class="bg-white rounded-lg shadow-md p-6 flex flex-col md:flex-row items-center md:items-start space-y-6 md:space-y-0 md:space-x-8">
+    <div class="md:w-1/3">
+        <img src="{{ livre.image_url }}" alt="{{ livre.titre }}" class="rounded-lg shadow-lg w-full">
+    </div>
+    <div class="md:w-2/3">
+        <h1 class="text-4xl font-bold text-gray-800">{{ livre.titre }}</h1>
+        <p class="text-lg text-gray-600 mt-2">Auteur : {{ livre.auteur }}</p>
+        <div class="flex items-center mt-4">
+            <p class="text-xl font-semibold">Statut :</p>
+            {% if livre.disponibilite > 0 %}
+                <span class="ml-2 px-3 py-1 text-sm font-bold text-green-700 bg-green-100 rounded-full">Disponible</span>
+                <button id="reserver-btn" data-livre-id="{{ livre.id }}" class="ml-4 bg-blue-500 text-white font-bold py-2 px-4 rounded hover:bg-blue-700 transition-colors duration-300">Réserver</button>
+            {% else %}
+                <span class="ml-2 px-3 py-1 text-sm font-bold text-red-700 bg-red-100 rounded-full">Réservé</span>
+            {% endif %}
+        </div>
+        <div id="reservation-message" class="mt-4"></div>
+        <p class="mt-6 text-gray-700 text-justify">{{ livre.description }}</p>
+    </div>
+</div>
+{% endblock %}

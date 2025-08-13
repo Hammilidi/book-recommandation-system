@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Statistiques{% endblock %}
+{% block content %}
+<h1 class="text-3xl font-bold text-gray-800 mb-6">Statistiques de la bibliothèque</h1>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="bg-white rounded-lg shadow-md p-6 text-center">
+        <h3 class="text-lg font-semibold text-gray-600">Taux de disponibilité</h3>
+        <p id="dispo-rate" class="mt-2 text-4xl font-bold text-blue-600">0%</p>
+    </div>
+    <div class="bg-white rounded-lg shadow-md p-6 text-center">
+        <h3 class="text-lg font-semibold text-gray-600">Livres en retard</h3>
+        <p id="late-count" class="mt-2 text-4xl font-bold text-red-600">0</p>
+    </div>
+    <div class="bg-white rounded-lg shadow-md p-6 text-center">
+        <h3 class="text-lg font-semibold text-gray-600">Total adhérents</h3>
+        <p id="adherent-count" class="mt-2 text-4xl font-bold text-gray-600">{{ adherents|length if adherents else '...' }}</p>
+    </div>
+</div>
+
+<div class="bg-white rounded-lg shadow-md p-6">
+    <h2 class="text-2xl font-semibold mb-4">5 livres les plus empruntés</h2>
+    <canvas id="myChart"></canvas>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', async function() {
+        const adherentCountEl = document.getElementById('adherent-count');
+        const adherentCount = {{ adherents|length }};
+        adherentCountEl.textContent = adherentCount;
+        
+        const response = await fetch('/api/statistiques');
+        const stats = await response.json();
+
+        document.getElementById('dispo-rate').textContent = `${stats.taux_disponibilite}%`;
+        document.getElementById('late-count').textContent = stats.nombre_retards;
+
+        const ctx = document.getElementById('myChart').getContext('2d');
+        const popularBooksData = stats.livres_plus_empruntes.map(b => b.emprunts);
+        const popularBooksLabels = stats.livres_plus_empruntes.map(b => b.titre);
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: popularBooksLabels,
+                datasets: [{
+                    label: 'Nombre d\'emprunts',
+                    data: popularBooksData,
+                    backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

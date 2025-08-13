@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Accueil{% endblock %}
+{% block content %}
+<h1 class="text-3xl font-bold text-gray-800 mb-6">Catalogue des livres</h1>
+<div class="flex justify-between items-center mb-6">
+    <div class="relative w-full mr-4">
+        <input type="text" id="search-input" placeholder="Rechercher par titre..." class="w-full pl-10 pr-4 py-2 border rounded-full focus:outline-none focus:ring focus:border-blue-300">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg class="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"></path></svg>
+        </div>
+    </div>
+    <a href="/recommandations" class="bg-green-500 text-white px-4 py-2 rounded-full hover:bg-green-600">Obtenir des suggestions IA</a>
+</div>
+<div id="books-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+    {% for livre in livres %}
+        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300">
+            <a href="/livre/{{ livre.id }}">
+                <img src="{{ livre.image_url }}" alt="{{ livre.titre }}" class="w-full h-56 object-cover">
+                <div class="p-4">
+                    <h3 class="text-lg font-semibold text-gray-800">{{ livre.titre }}</h3>
+                    <p class="text-sm text-gray-500 mt-1">
+                        {% if livre.disponibilite > 0 %}
+                            <span class="text-green-500 font-medium">Disponible</span>
+                        {% else %}
+                            <span class="text-red-500 font-medium">Réservé</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </a>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}

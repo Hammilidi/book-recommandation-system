@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Gestion des Emprunts{% endblock %}
+{% block content %}
+<h1 class="text-3xl font-bold text-gray-800 mb-6">Gestion des emprunts et retours</h1>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-2xl font-semibold mb-4">Enregistrer un emprunt</h2>
+        <form id="emprunt-form" class="space-y-4">
+            <div>
+                <label for="adherent-select" class="block text-sm font-medium text-gray-700">Adhérent</label>
+                <select id="adherent-select" name="id_adherent" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    {% for adherent in adherents %}
+                        <option value="{{ adherent.id }}">{{ adherent.nom }} ({{ adherent.email }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="livre-select" class="block text-sm font-medium text-gray-700">Livre</label>
+                <select id="livre-select" name="id_livre" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    {% for livre in livres %}
+                        <option value="{{ livre.id }}">{{ livre.titre }} (Disponible: {{ livre.disponibilite }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="date-retour-prevue" class="block text-sm font-medium text-gray-700">Date de retour prévue</label>
+                <input type="date" id="date-retour-prevue" name="date_retour_prevue" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+            </div>
+            <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">Enregistrer</button>
+            <div id="emprunt-message" class="mt-4"></div>
+        </form>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-2xl font-semibold mb-4">Enregistrer un retour</h2>
+        <form id="retour-form" class="space-y-4">
+            <div>
+                <label for="emprunt-select" class="block text-sm font-medium text-gray-700">Emprunt en cours</label>
+                <select id="emprunt-select" name="emprunt_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    {% for emprunt in emprunts %}
+                        {% if not emprunt.date_retour_effectif %}
+                            <option value="{{ emprunt.id }}">{{ emprunt.adherent.nom }} - {{ emprunt.livre.titre }} (Retour le {{ emprunt.date_retour_prevue.strftime('%d/%m/%Y') }})</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700">Confirmer le retour</button>
+            <div id="retour-message" class="mt-4"></div>
+        </form>
+    </div>
+</div>
+<script>
+    document.getElementById('emprunt-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const response = await fetch('/api/emprunts', { method: 'POST', body: formData });
+        const result = await response.json();
+        const messageDiv = document.getElementById('emprunt-message');
+        if (response.ok) {
+            messageDiv.innerHTML = `<div class="bg-green-100 text-green-700 p-4 rounded-lg">${result.message}</div>`;
+            window.location.reload();
+        } else {
+            messageDiv.innerHTML = `<div class="bg-red-100 text-red-700 p-4 rounded-lg">${result.detail}</div>`;
+        }
+    });
+
+    document.getElementById('retour-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const empruntId = document.getElementById('emprunt-select').value;
+        const response = await fetch(`/api/retours/${empruntId}`, { method: 'POST' });
+        const result = await response.json();
+        const messageDiv = document.getElementById('retour-message');
+        if (response.ok) {
+            messageDiv.innerHTML = `<div class="bg-green-100 text-green-700 p-4 rounded-lg">${result.message}</div>`;
+            window.location.reload();
+        } else {
+            messageDiv.innerHTML = `<div class="bg-red-100 text-red-700 p-4 rounded-lg">${result.detail}</div>`;
+        }
+    });
+</script>
+{% endblock %}

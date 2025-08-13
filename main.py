@@ -1,39 +1,31 @@
-# main.py
-from fastapi import FastAPI, Depends, HTTPException, status, Request, Form, File, UploadFile
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import FastAPI, Depends, HTTPException, status, Request, Form, Response, Query
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float, Text, Boolean, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Boolean, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session, relationship
 from passlib.context import CryptContext
-from pydantic import BaseModel, EmailStr, validator
+from pydantic import BaseModel, EmailStr
 from datetime import datetime, timedelta
 from typing import Optional, List
-import jwt
-import os
 import secrets
-from email_validator import validate_email, EmailNotValidError
+import os
 import re
+import logging
 import joblib
+import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-import logging
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-
-import sys
-print("Python executable:", sys.executable)
-print("Python version:", sys.version)
-
+from jose import jwt as jose_jwt, JWTError
+from email_validator import validate_email, EmailNotValidError
 
 # Configuration sécurisée
 SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_urlsafe(32))
@@ -59,14 +51,14 @@ app = FastAPI(
 app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8000"],  # Restreindre en production
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["localhost", "127.0.0.1", "*.yourdomain.com"]
+    allowed_hosts=["localhost", "127.0.0.1"]
 )
 
 # Gestion des erreurs de rate limiting
@@ -78,13 +70,20 @@ templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Configuration base de données
-engine = create_engine(DATABASE_URL, echo=False)
+engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 # Configuration sécurité mots de passe
-pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
-security = HTTPBearer()
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/login")
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 # Modèles SQLAlchemy
 class Adherent(Base):
@@ -97,8 +96,6 @@ class Adherent(Base):
     role = Column(String(20), default="adherent")
     date_inscription = Column(DateTime, default=datetime.utcnow)
     actif = Column(Boolean, default=True)
-    tentatives_connexion = Column(Integer, default=0)
-    derniere_tentative = Column(DateTime, nullable=True)
     
     emprunts = relationship("Emprunt", back_populates="adherent")
     reservations = relationship("Reservation", back_populates="adherent")
@@ -109,12 +106,11 @@ class Livre(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     titre = Column(String(500), nullable=False, index=True)
+    auteur = Column(String(255))
     description = Column(Text)
     image_url = Column(String(500))
-    prix = Column(Float)
     disponibilite = Column(Integer, default=1)
     note = Column(Integer, default=0)
-    date_ajout = Column(DateTime, default=datetime.utcnow)
     
     emprunts = relationship("Emprunt", back_populates="livre")
     reservations = relationship("Reservation", back_populates="livre")
@@ -128,7 +124,7 @@ class Emprunt(Base):
     date_emprunt = Column(DateTime, default=datetime.utcnow)
     date_retour_prevue = Column(DateTime, nullable=False)
     date_retour_effectif = Column(DateTime, nullable=True)
-    statut = Column(String(20), default="en_cours")  # en_cours, rendu, en_retard
+    statut = Column(String(20), default="en_cours")
     
     adherent = relationship("Adherent", back_populates="emprunts")
     livre = relationship("Livre", back_populates="emprunts")
@@ -140,24 +136,29 @@ class Reservation(Base):
     id_adherent = Column(Integer, ForeignKey("adherents.id"), nullable=False)
     id_livre = Column(Integer, ForeignKey("livres.id"), nullable=False)
     date_reservation = Column(DateTime, default=datetime.utcnow)
-    statut = Column(String(20), default="en_attente")  # en_attente, disponible, annulee
+    statut = Column(String(20), default="en_attente")
     
     adherent = relationship("Adherent", back_populates="reservations")
     livre = relationship("Livre", back_populates="reservations")
 
+class HistoriqueEmprunt(Base):
+    __tablename__ = "historique_emprunts"
+    id = Column(Integer, primary_key=True)
+    id_adherent = Column(Integer, nullable=False)
+    id_livre = Column(Integer, nullable=False)
+    date_emprunt = Column(DateTime, default=datetime.utcnow)
+
 class Notification(Base):
     __tablename__ = "notifications"
-    
     id = Column(Integer, primary_key=True, index=True)
     id_adherent = Column(Integer, ForeignKey("adherents.id"), nullable=False)
     message = Column(Text, nullable=False)
     date_creation = Column(DateTime, default=datetime.utcnow)
     lu = Column(Boolean, default=False)
-    type_notification = Column(String(50))  # rappel_retour, reservation_disponible
     
     adherent = relationship("Adherent", back_populates="notifications")
 
-# Créer les tables
+# Créer les tables (à exécuter une fois)
 Base.metadata.create_all(bind=engine)
 
 # Modèles Pydantic
@@ -165,63 +166,45 @@ class UserCreate(BaseModel):
     nom: str
     email: EmailStr
     password: str
-    
-    @validator('nom')
-    def validate_nom(cls, v):
-        if len(v.strip()) < 2:
-            raise ValueError('Le nom doit contenir au moins 2 caractères')
-        if not re.match(r"^[a-zA-ZÀ-ÿ\s'-]+$", v):
-            raise ValueError('Le nom contient des caractères non autorisés')
-        return v.strip()
-    
-    @validator('password')
-    def validate_password(cls, v):
-        if len(v) < 8:
-            raise ValueError('Le mot de passe doit contenir au moins 8 caractères')
-        if not re.search(r"[A-Z]", v):
-            raise ValueError('Le mot de passe doit contenir au moins une majuscule')
-        if not re.search(r"[a-z]", v):
-            raise ValueError('Le mot de passe doit contenir au moins une minuscule')
-        if not re.search(r"[0-9]", v):
-            raise ValueError('Le mot de passe doit contenir au moins un chiffre')
-        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", v):
-            raise ValueError('Le mot de passe doit contenir au moins un caractère spécial')
-        return v
+    password_confirm: str
 
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
+    @property
+    def password_match(self):
+        return self.password == self.password_confirm
 
-class LivreCreate(BaseModel):
+class AdherentOut(BaseModel):
+    id: int
+    nom: str
+    email: str
+    role: str
+    date_inscription: datetime
+    actif: bool
+
+    class Config:
+        from_attributes = True
+
+class LivreOut(BaseModel):
+    id: int
     titre: str
-    description: Optional[str] = None
-    prix: Optional[float] = 0.0
-    disponibilite: Optional[int] = 1
-    note: Optional[int] = 0
+    description: Optional[str]
+    image_url: Optional[str]
+    disponibilite: int
+    note: Optional[int]
 
-class RecommendationRequest(BaseModel):
+    class Config:
+        from_attributes = True
+
+class EmpruntOut(BaseModel):
+    id: int
+    livre_titre: str
+    date_emprunt: datetime
+    date_retour_prevue: datetime
+    statut: str
+
+class DescriptionRequest(BaseModel):
     description: str
-    
-    @validator('description')
-    def validate_description(cls, v):
-        if len(v.strip()) < 10:
-            raise ValueError('La description doit contenir au moins 10 caractères')
-        return v.strip()
 
-# Utilitaires de sécurité
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
-
+# Fonctions de sécurité
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
@@ -229,664 +212,392 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     else:
         expire = datetime.utcnow() + timedelta(minutes=15)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jose_jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+def verify_token(token: str):
     try:
-        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
-            raise HTTPException(status_code=401, detail="Token invalide")
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expiré")
-    except jwt.JWTError:
-        raise HTTPException(status_code=401, detail="Token invalide")
-    
-    user = db.query(Adherent).filter(Adherent.email == email).first()
-    if user is None or not user.actif:
-        raise HTTPException(status_code=401, detail="Utilisateur non trouvé ou suspendu")
-    return user
-
-def get_current_admin(current_user: Adherent = Depends(get_current_user)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Accès administrateur requis")
-    return current_user
-
-def is_account_locked(user: Adherent) -> bool:
-    if user.tentatives_connexion >= 5:
-        if user.derniere_tentative:
-            lockout_time = user.derniere_tentative + timedelta(minutes=15)
-            return datetime.utcnow() < lockout_time
-    return False
-
-# Fonction de recommandation
-def load_recommendation_model():
-    try:
-        return joblib.load('recommendation_model.pkl')
-    except FileNotFoundError:
-        logger.warning("Modèle de recommandation non trouvé")
+        payload = jose_jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except JWTError:
         return None
 
-def get_recommendations_from_description(description: str, model_data, db: Session, n_recommendations: int = 5):
-    if not model_data:
-        return []
-    
-    try:
-        # Vectoriser la description d'entrée
-        description_vector = model_data['vectorizer'].transform([description])
-        
-        # Calculer la similarité avec tous les livres
-        similarities = cosine_similarity(description_vector, model_data['tfidf_matrix']).flatten()
-        
-        # Obtenir les indices des livres les plus similaires
-        similar_indices = similarities.argsort()[-n_recommendations-1:-1][::-1]
-        
-        # Récupérer les livres depuis la base de données
-        livres_recommandes = []
-        for idx in similar_indices:
-            if idx < len(model_data['titles']):
-                titre = model_data['titles'][idx]
-                livre = db.query(Livre).filter(Livre.titre == titre).first()
-                if livre:
-                    livres_recommandes.append({
-                        'id': livre.id,
-                        'titre': livre.titre,
-                        'description': livre.description,
-                        'image_url': livre.image_url,
-                        'disponibilite': livre.disponibilite,
-                        'score': float(similarities[idx])
-                    })
-        
-        return livres_recommandes
-    except Exception as e:
-        logger.error(f"Erreur lors des recommandations: {e}")
-        return []
+def get_current_user(request: Request, db: Session = Depends(get_db)):
+    token = request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token manquant")
+    payload = verify_token(token)
+    if not payload:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invalide")
+    user_id = payload.get("user_id")
+    if user_id is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invalide")
+    user = db.query(Adherent).filter(Adherent.id == user_id).first()
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Utilisateur non trouvé")
+    return user
 
-# Fonction d'envoi d'email
-def send_notification_email(to_email: str, subject: str, body: str):
-    try:
-        smtp_server = os.getenv("SMTP_SERVER", "localhost")
-        smtp_port = int(os.getenv("SMTP_PORT", "587"))
-        smtp_username = os.getenv("SMTP_USERNAME", "")
-        smtp_password = os.getenv("SMTP_PASSWORD", "")
-        
-        msg = MIMEMultipart()
-        msg['From'] = smtp_username
-        msg['To'] = to_email
-        msg['Subject'] = subject
-        
-        msg.attach(MIMEText(body, 'html'))
-        
-        server = smtplib.SMTP(smtp_server, smtp_port)
-        server.starttls()
-        if smtp_username and smtp_password:
-            server.login(smtp_username, smtp_password)
-        server.send_message(msg)
-        server.quit()
-        
-        logger.info(f"Email envoyé à {to_email}")
-    except Exception as e:
-        logger.error(f"Erreur envoi email: {e}")
+def get_current_admin(user: Adherent = Depends(get_current_user)):
+    if user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé. Administrateur requis.")
+    return user
 
-# Routes HTML
+# =================================================================
+#                         LOGIQUE DE RECOMMANDATION
+# =================================================================
+# Variables globales pour le modèle de recommandation
+tfidf_vectorizer = None
+tfidf_matrix = None
+livres_df = None
+
+def preprocess_text(text):
+    if not text or pd.isna(text):
+        return ""
+    text = str(text).lower()
+    text = re.sub(r'[^\w\s]', ' ', text)
+    text = re.sub(r'\s+', ' ', text)
+    return text.strip()
+
+def load_or_train_model():
+    global tfidf_vectorizer, tfidf_matrix, livres_df
+    model_path = "models/recommendation_model.joblib"
+
+    if os.path.exists(model_path):
+        try:
+            model_data = joblib.load(model_path)
+            tfidf_vectorizer = model_data['tfidf_vectorizer']
+            tfidf_matrix = model_data['tfidf_matrix']
+            livres_df = model_data['df']
+            logger.info("Modèles de recommandation chargés depuis le disque.")
+            return True
+        except Exception as e:
+            logger.error(f"Erreur lors du chargement des modèles sauvegardés : {e}")
+            pass
+
+    logger.warning("Modèles de recommandation non trouvés ou erreur. Entraînement en cours...")
+    try:
+        db = SessionLocal()
+        livres = db.query(Livre).filter(Livre.description.isnot(None), Livre.description != "").all()
+        livres_df = pd.DataFrame([(l.id, l.titre, l.description, l.image_url, l.disponibilite, l.note) for l in livres],
+                                 columns=['id', 'titre', 'description', 'image_url', 'disponibilite', 'note'])
+        db.close()
+        
+        if livres_df.empty:
+            logger.error("Aucun livre avec une description trouvée dans la base de données. Impossible d'entraîner le modèle.")
+            return False
+
+        livres_df['description_clean'] = livres_df['description'].apply(preprocess_text)
+        tfidf_vectorizer = TfidfVectorizer(stop_words='french')
+        tfidf_matrix = tfidf_vectorizer.fit_transform(livres_df['description_clean'])
+
+        if not os.path.exists("models"):
+            os.makedirs("models")
+        
+        model_data = {
+            'tfidf_vectorizer': tfidf_vectorizer,
+            'tfidf_matrix': tfidf_matrix,
+            'df': livres_df
+        }
+        joblib.dump(model_data, model_path)
+        logger.info("Modèles de recommandation entraînés et sauvegardés.")
+        return True
+    except Exception as e:
+        logger.error(f"Erreur lors de l'entraînement du modèle : {e}")
+        return False
+
+# Initialiser les modèles au démarrage de l'application
+@app.on_event("startup")
+async def startup_event():
+    load_or_train_model()
+
+# =================================================================
+#                         ROUTES HTML
+# =================================================================
+
 @app.get("/", response_class=HTMLResponse)
-async def root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+@limiter.limit("5/minute")
+async def read_root(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
 
 @app.get("/inscription", response_class=HTMLResponse)
+@limiter.limit("5/minute")
 async def inscription_page(request: Request):
     return templates.TemplateResponse("inscription.html", {"request": request})
 
-@app.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
-
 @app.get("/home", response_class=HTMLResponse)
-async def home_page(request: Request):
-    return templates.TemplateResponse("home.html", {"request": request})
+async def home_page(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request, db)
+    livres = db.query(Livre).order_by(Livre.titre).all()
+    return templates.TemplateResponse("home.html", {"request": request, "user": user, "livres": livres})
 
 @app.get("/livre/{livre_id}", response_class=HTMLResponse)
-async def livre_page(request: Request, livre_id: int):
-    return templates.TemplateResponse("livre.html", {"request": request, "livre_id": livre_id})
+async def livre_detail_page(request: Request, livre_id: int, db: Session = Depends(get_db)):
+    user = get_current_user(request, db)
+    livre = db.query(Livre).filter(Livre.id == livre_id).first()
+    if not livre:
+        raise HTTPException(status_code=404, detail="Livre non trouvé")
+    return templates.TemplateResponse("livre.html", {"request": request, "user": user, "livre": livre})
 
 @app.get("/profil", response_class=HTMLResponse)
-async def profil_page(request: Request):
-    return templates.TemplateResponse("profil.html", {"request": request})
+async def profil_page(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request, db)
+    emprunts = db.query(Emprunt).filter(Emprunt.id_adherent == user.id).all()
+    reservations = db.query(Reservation).filter(Reservation.id_adherent == user.id).all()
+    return templates.TemplateResponse("profil.html", {"request": request, "user": user, "emprunts": emprunts, "reservations": reservations})
 
-@app.get("/recommandation-par-description", response_class=HTMLResponse)
-async def recommandation_page(request: Request):
-    return templates.TemplateResponse("recommandation-par-description.html", {"request": request})
+@app.get("/recommandations", response_class=HTMLResponse)
+async def recommandations_page(request: Request, user: Adherent = Depends(get_current_user)):
+    return templates.TemplateResponse("recommandation_par_description.html", {"request": request, "user": user})
 
 @app.get("/admin/gestion-adherents", response_class=HTMLResponse)
-async def admin_adherents_page(request: Request):
-    return templates.TemplateResponse("admin/gestion-adherents.html", {"request": request})
+async def admin_adherents_page(request: Request, db: Session = Depends(get_db), admin: Adherent = Depends(get_current_admin)):
+    adherents = db.query(Adherent).all()
+    return templates.TemplateResponse("admin/gestion_adherents.html", {"request": request, "adherents": adherents, "user": admin})
 
 @app.get("/admin/gestion-livres", response_class=HTMLResponse)
-async def admin_livres_page(request: Request):
-    return templates.TemplateResponse("admin/gestion-livres.html", {"request": request})
+async def admin_livres_page(request: Request, db: Session = Depends(get_db), admin: Adherent = Depends(get_current_admin)):
+    livres = db.query(Livre).all()
+    return templates.TemplateResponse("admin/gestion_livres.html", {"request": request, "livres": livres, "user": admin})
 
 @app.get("/admin/emprunts", response_class=HTMLResponse)
-async def admin_emprunts_page(request: Request):
-    return templates.TemplateResponse("admin/emprunts.html", {"request": request})
+async def admin_emprunts_page(request: Request, db: Session = Depends(get_db), admin: Adherent = Depends(get_current_admin)):
+    adherents = db.query(Adherent).all()
+    livres = db.query(Livre).all()
+    emprunts = db.query(Emprunt).all()
+    return templates.TemplateResponse("admin/emprunts.html", {"request": request, "adherents": adherents, "livres": livres, "emprunts": emprunts, "user": admin})
 
 @app.get("/admin/statistiques", response_class=HTMLResponse)
-async def admin_stats_page(request: Request):
-    return templates.TemplateResponse("admin/statistiques.html", {"request": request})
+async def admin_stats_page(request: Request, admin: Adherent = Depends(get_current_admin)):
+    return templates.TemplateResponse("admin/statistiques.html", {"request": request, "user": admin})
 
-# Routes API
+@app.post("/logout")
+async def logout(response: Response):
+    response.delete_cookie(key="access_token")
+    return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
 
-# Authentification
-@app.post("/api/register")
+# =================================================================
+#                         ROUTES API
+# =================================================================
+
+@app.post("/api/register", status_code=status.HTTP_201_CREATED, response_model=AdherentOut)
 @limiter.limit("5/minute")
-async def register(request: Request, user_data: UserCreate, db: Session = Depends(get_db)):
-    # Vérifier si l'email existe déjà
-    if db.query(Adherent).filter(Adherent.email == user_data.email).first():
-        raise HTTPException(status_code=400, detail="Cet email est déjà utilisé")
+def register_user(request: Request, user: UserCreate, db: Session = Depends(get_db)):
+    if not user.password_match:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Les mots de passe ne correspondent pas")
     
-    # Créer le nouvel utilisateur
-    hashed_password = hash_password(user_data.password)
+    try:
+        validate_email(user.email)
+    except EmailNotValidError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Adresse e-mail invalide")
+    
+    if db.query(Adherent).filter(Adherent.email == user.email).first():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cette adresse e-mail est déjà utilisée")
+
+    hashed_password = pwd_context.hash(user.password)
     new_user = Adherent(
-        nom=user_data.nom,
-        email=user_data.email,
+        nom=user.nom,
+        email=user.email,
         password_hash=hashed_password,
         role="adherent"
     )
-    
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    
-    logger.info(f"Nouvel utilisateur créé: {user_data.email}")
-    return {"message": "Compte créé avec succès", "user_id": new_user.id}
+    return new_user
 
-@app.post("/api/login")
-@limiter.limit("10/minute")
-async def login(request: Request, user_credentials: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(Adherent).filter(Adherent.email == user_credentials.email).first()
+@app.post("/api/login", response_class=JSONResponse)
+@limiter.limit("5/minute")
+def login(request: Request, response: Response, db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
+    user = db.query(Adherent).filter(Adherent.email == form_data.username).first()
+    if not user or not pwd_context.verify(form_data.password, user.password_hash):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Identifiants incorrects")
     
-    if not user:
-        raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
-    
-    # Vérifier si le compte est verrouillé
-    if is_account_locked(user):
-        raise HTTPException(status_code=429, detail="Compte temporairement verrouillé. Réessayez dans 15 minutes.")
-    
-    # Vérifier le mot de passe
-    if not verify_password(user_credentials.password, user.password_hash):
-        user.tentatives_connexion += 1
-        user.derniere_tentative = datetime.utcnow()
-        db.commit()
-        raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
-    
-    if not user.actif:
-        raise HTTPException(status_code=401, detail="Compte suspendu")
-    
-    # Réinitialiser les tentatives de connexion
-    user.tentatives_connexion = 0
-    user.derniere_tentative = None
-    db.commit()
-    
-    # Créer le token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.email, "role": user.role}, expires_delta=access_token_expires
+        data={"user_id": user.id, "role": user.role}, expires_delta=access_token_expires
     )
-    
-    logger.info(f"Connexion réussie: {user.email}")
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": {
-            "id": user.id,
-            "nom": user.nom,
-            "email": user.email,
-            "role": user.role
-        }
-    }
+    response.set_cookie(key="access_token", value=access_token, httponly=True)
+    return {"message": "Connexion réussie"}
 
-# Gestion des livres
-@app.get("/api/livres")
-async def get_livres(search: Optional[str] = None, db: Session = Depends(get_db)):
+@app.get("/api/livres", response_model=List[LivreOut])
+def get_livres(search: Optional[str] = Query(None), db: Session = Depends(get_db)):
     query = db.query(Livre)
-    
     if search:
         query = query.filter(Livre.titre.ilike(f"%{search}%"))
-    
-    livres = query.all()
-    return [
-        {
-            "id": livre.id,
-            "titre": livre.titre,
-            "description": livre.description,
-            "image_url": livre.image_url,
-            "disponibilite": livre.disponibilite,
-            "note": livre.note,
-            "prix": livre.prix
-        }
-        for livre in livres
-    ]
+    return query.all()
 
-@app.get("/api/livre/{livre_id}")
-async def get_livre_detail(livre_id: int, db: Session = Depends(get_db)):
+@app.post("/api/reservations/{livre_id}")
+def reserver_livre(livre_id: int, db: Session = Depends(get_db), user: Adherent = Depends(get_current_user)):
     livre = db.query(Livre).filter(Livre.id == livre_id).first()
     if not livre:
         raise HTTPException(status_code=404, detail="Livre non trouvé")
     
-    return {
-        "id": livre.id,
-        "titre": livre.titre,
-        "description": livre.description,
-        "image_url": livre.image_url,
-        "disponibilite": livre.disponibilite,
-        "note": livre.note,
-        "prix": livre.prix
-    }
-
-@app.post("/api/livres")
-async def create_livre(
-    livre_data: LivreCreate,
-    current_user: Adherent = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    new_livre = Livre(**livre_data.dict())
-    db.add(new_livre)
-    db.commit()
-    db.refresh(new_livre)
+    if livre.disponibilite <= 0:
+        raise HTTPException(status_code=400, detail="Ce livre n'est pas disponible pour le moment")
     
-    logger.info(f"Nouveau livre ajouté: {livre_data.titre} par {current_user.email}")
-    return {"message": "Livre ajouté avec succès", "livre_id": new_livre.id}
-
-@app.put("/api/livres/{livre_id}")
-async def update_livre(
-    livre_id: int,
-    livre_data: LivreCreate,
-    current_user: Adherent = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    livre = db.query(Livre).filter(Livre.id == livre_id).first()
-    if not livre:
-        raise HTTPException(status_code=404, detail="Livre non trouvé")
-    
-    for key, value in livre_data.dict().items():
-        setattr(livre, key, value)
-    
-    db.commit()
-    logger.info(f"Livre modifié: {livre_id} par {current_user.email}")
-    return {"message": "Livre mis à jour avec succès"}
-
-@app.delete("/api/livres/{livre_id}")
-async def delete_livre(
-    livre_id: int,
-    current_user: Adherent = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    livre = db.query(Livre).filter(Livre.id == livre_id).first()
-    if not livre:
-        raise HTTPException(status_code=404, detail="Livre non trouvé")
-    
-    # Vérifier s'il y a des emprunts en cours
-    emprunts_actifs = db.query(Emprunt).filter(
-        Emprunt.id_livre == livre_id,
-        Emprunt.statut == "en_cours"
-    ).count()
-    
-    if emprunts_actifs > 0:
-        raise HTTPException(status_code=400, detail="Impossible de supprimer un livre avec des emprunts en cours")
-    
-    db.delete(livre)
-    db.commit()
-    
-    logger.info(f"Livre supprimé: {livre_id} par {current_user.email}")
-    return {"message": "Livre supprimé avec succès"}
-
-# Réservations
-@app.post("/api/reservations")
-async def create_reservation(
-    livre_id: int,
-    current_user: Adherent = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    # Vérifier si le livre existe
-    livre = db.query(Livre).filter(Livre.id == livre_id).first()
-    if not livre:
-        raise HTTPException(status_code=404, detail="Livre non trouvé")
-    
-    # Vérifier si l'utilisateur a déjà réservé ce livre
     existing_reservation = db.query(Reservation).filter(
-        Reservation.id_adherent == current_user.id,
-        Reservation.id_livre == livre_id,
+        Reservation.id_adherent == user.id,
+        Reservation.id_livre == livre.id,
         Reservation.statut == "en_attente"
     ).first()
-    
     if existing_reservation:
-        raise HTTPException(status_code=400, detail="Vous avez déjà réservé ce livre")
+        raise HTTPException(status_code=400, detail="Vous avez déjà une réservation en cours pour ce livre")
     
-    # Créer la réservation
     new_reservation = Reservation(
-        id_adherent=current_user.id,
-        id_livre=livre_id,
+        id_adherent=user.id,
+        id_livre=livre.id,
+        date_reservation=datetime.utcnow(),
         statut="en_attente"
     )
-    
+    livre.disponibilite -= 1
     db.add(new_reservation)
     db.commit()
     
-    logger.info(f"Réservation créée: livre {livre_id} par {current_user.email}")
-    return {"message": "Réservation créée avec succès"}
+    return {"message": "Réservation effectuée avec succès"}
 
-# Emprunts
-@app.get("/api/mes-emprunts")
-async def get_mes_emprunts(
-    current_user: Adherent = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    emprunts = db.query(Emprunt).filter(Emprunt.id_adherent == current_user.id).all()
-    
-    result = []
-    for emprunt in emprunts:
-        livre = db.query(Livre).filter(Livre.id == emprunt.id_livre).first()
-        
-        # Vérifier si en retard
-        en_retard = False
-        if emprunt.statut == "en_cours" and datetime.utcnow() > emprunt.date_retour_prevue:
-            en_retard = True
-            # Mettre à jour le statut si nécessaire
-            emprunt.statut = "en_retard"
-            db.commit()
-        
-        result.append({
-            "id": emprunt.id,
-            "livre": {
-                "id": livre.id,
-                "titre": livre.titre,
-                "image_url": livre.image_url
-            },
-            "date_emprunt": emprunt.date_emprunt.isoformat(),
-            "date_retour_prevue": emprunt.date_retour_prevue.isoformat(),
-            "date_retour_effectif": emprunt.date_retour_effectif.isoformat() if emprunt.date_retour_effectif else None,
-            "statut": emprunt.statut,
-            "en_retard": en_retard
-        })
-    
-    return result
-
-@app.post("/api/emprunts")
-async def create_emprunt(
-    id_adherent: int,
-    id_livre: int,
-    current_user: Adherent = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    # Vérifier si le livre est disponible
-    livre = db.query(Livre).filter(Livre.id == id_livre).first()
-    if not livre or livre.disponibilite <= 0:
-        raise HTTPException(status_code=400, detail="Livre non disponible")
-    
-    # Vérifier si l'adhérent existe
-    adherent = db.query(Adherent).filter(Adherent.id == id_adherent).first()
+@app.post("/api/adherents/delete/{id}")
+def delete_adherent(id: int, db: Session = Depends(get_db), admin: Adherent = Depends(get_current_admin)):
+    adherent = db.query(Adherent).filter(Adherent.id == id).first()
     if not adherent:
         raise HTTPException(status_code=404, detail="Adhérent non trouvé")
-    
-    # Créer l'emprunt
-    date_retour_prevue = datetime.utcnow() + timedelta(days=14)
-    new_emprunt = Emprunt(
-        id_adherent=id_adherent,
-        id_livre=id_livre,
-        date_retour_prevue=date_retour_prevue
-    )
-    
-    # Diminuer la disponibilité
-    livre.disponibilite -= 1
-    
-    db.add(new_emprunt)
+    db.delete(adherent)
     db.commit()
-    
-    logger.info(f"Emprunt créé: livre {id_livre} par adhérent {id_adherent}")
-    return {"message": "Emprunt enregistré avec succès"}
+    return {"message": "Adhérent supprimé"}
 
-@app.post("/api/retours/{emprunt_id}")
-async def create_retour(
-    emprunt_id: int,
-    current_user: Adherent = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    emprunt = db.query(Emprunt).filter(Emprunt.id == emprunt_id).first()
-    if not emprunt:
-        raise HTTPException(status_code=404, detail="Emprunt non trouvé")
-    
-    if emprunt.date_retour_effectif:
-        raise HTTPException(status_code=400, detail="Livre déjà retourné")
-    
-    # Marquer comme retourné
-    emprunt.date_retour_effectif = datetime.utcnow()
-    emprunt.statut = "rendu"
-    
-    # Augmenter la disponibilité
-    livre = db.query(Livre).filter(Livre.id == emprunt.id_livre).first()
-    livre.disponibilite += 1
-    
-    db.commit()
-    
-    logger.info(f"Retour enregistré: emprunt {emprunt_id}")
-    return {"message": "Retour enregistré avec succès"}
-
-# Recommandations
-@app.post("/api/recommander-par-description")
-async def get_recommendations(
-    request_data: RecommendationRequest,
-    db: Session = Depends(get_db)
-):
-    model_data = load_recommendation_model()
-    if not model_data:
-        raise HTTPException(status_code=503, detail="Service de recommandation indisponible")
-    
-    recommendations = get_recommendations_from_description(
-        request_data.description, model_data, db
-    )
-    
-    return {"recommendations": recommendations}
-
-# Gestion des adhérents (Admin)
-@app.get("/api/adherents")
-async def get_adherents(
-    current_user: Adherent = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    adherents = db.query(Adherent).all()
-    return [
-        {
-            "id": adherent.id,
-            "nom": adherent.nom,
-            "email": adherent.email,
-            "role": adherent.role,
-            "actif": adherent.actif,
-            "date_inscription": adherent.date_inscription.isoformat()
-        }
-        for adherent in adherents
-    ]
-
-@app.put("/api/adherents/{adherent_id}")
-async def update_adherent(
-    adherent_id: int,
-    nom: Optional[str] = None,
-    role: Optional[str] = None,
-    actif: Optional[bool] = None,
-    current_user: Adherent = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    adherent = db.query(Adherent).filter(Adherent.id == adherent_id).first()
+@app.post("/api/adherents/suspend/{id}")
+def suspend_adherent(id: int, db: Session = Depends(get_db), admin: Adherent = Depends(get_current_admin)):
+    adherent = db.query(Adherent).filter(Adherent.id == id).first()
     if not adherent:
         raise HTTPException(status_code=404, detail="Adhérent non trouvé")
-    
-    if nom:
-        adherent.nom = nom
-    if role:
-        adherent.role = role
-    if actif is not None:
-        adherent.actif = actif
-    
-    db.commit()
-    
-    logger.info(f"Adhérent modifié: {adherent_id} par {current_user.email}")
-    return {"message": "Adhérent mis à jour avec succès"}
-
-@app.delete("/api/adherents/{adherent_id}")
-async def suspend_adherent(
-    adherent_id: int,
-    current_user: Adherent = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    if adherent_id == current_user.id:
-        raise HTTPException(status_code=400, detail="Vous ne pouvez pas vous suspendre vous-même")
-    
-    adherent = db.query(Adherent).filter(Adherent.id == adherent_id).first()
-    if not adherent:
-        raise HTTPException(status_code=404, detail="Adhérent non trouvé")
-    
     adherent.actif = False
     db.commit()
-    
-    logger.info(f"Adhérent suspendu: {adherent_id} par {current_user.email}")
-    return {"message": "Adhérent suspendu avec succès"}
+    return {"message": "Adhérent suspendu"}
 
-# Statistiques
-@app.get("/api/statistiques")
-async def get_statistiques(
-    current_user: Adherent = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    # Top 5 livres les plus empruntés
-    top_livres = db.query(
-        Livre.titre,
-        db.func.count(Emprunt.id).label('nb_emprunts')
-    ).join(Emprunt).group_by(Livre.id).order_by(
-        db.func.count(Emprunt.id).desc()
-    ).limit(5).all()
+@app.get("/api/mes-emprunts", response_model=List[EmpruntOut])
+def get_mes_emprunts(db: Session = Depends(get_db), user: Adherent = Depends(get_current_user)):
+    emprunts = db.query(Emprunt).filter(Emprunt.id_adherent == user.id).all()
+    emprunts_out = []
+    for emprunt in emprunts:
+        emprunt_out = EmpruntOut(
+            id=emprunt.id,
+            livre_titre=emprunt.livre.titre,
+            date_emprunt=emprunt.date_emprunt,
+            date_retour_prevue=emprunt.date_retour_prevue,
+            statut="en retard" if emprunt.date_retour_prevue < datetime.utcnow() and not emprunt.date_retour_effectif else emprunt.statut
+        )
+        emprunts_out.append(emprunt_out)
+    return emprunts_out
+
+@app.post("/api/recommander-par-description", response_model=List[LivreOut])
+def recommander_par_description(request_body: DescriptionRequest, db: Session = Depends(get_db), user: Adherent = Depends(get_current_user)):
+    description = request_body.description
+    if not description:
+        raise HTTPException(status_code=400, detail="Veuillez fournir une description")
     
-    # Taux de disponibilité global
+    if tfidf_vectorizer is None or tfidf_matrix is None or livres_df is None:
+        raise HTTPException(status_code=503, detail="Le modèle de recommandation n'a pas pu être chargé ou entraîné.")
+
+    try:
+        user_description_vector = tfidf_vectorizer.transform([preprocess_text(description)])
+        cosine_similarities = cosine_similarity(user_description_vector, tfidf_matrix).flatten()
+        
+        top_indices = cosine_similarities.argsort()[-5:][::-1]
+        
+        livres_recommandes = []
+        livres_ids = livres_df.loc[top_indices, 'id'].tolist()
+        
+        for livre_id in livres_ids:
+            livre = db.query(Livre).filter(Livre.id == livre_id).first()
+            if livre:
+                livres_recommandes.append(livre)
+                
+        return livres_recommandes
+    except Exception as e:
+        logger.error(f"Erreur lors de la recommandation: {e}")
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur lors de la recommandation")
+
+@app.get("/api/statistiques")
+def get_statistiques(db: Session = Depends(get_db), admin: Adherent = Depends(get_current_admin)):
     total_livres = db.query(Livre).count()
     livres_disponibles = db.query(Livre).filter(Livre.disponibilite > 0).count()
-    taux_disponibilite = (livres_disponibles / total_livres * 100) if total_livres > 0 else 0
+    taux_disponibilite = (livres_disponibles / total_livres) * 100 if total_livres > 0 else 0
     
-    # Nombre de retards
-    nb_retards = db.query(Emprunt).filter(
-        Emprunt.statut == "en_retard"
+    livres_populaires = (
+        db.query(Livre.titre, db.func.count(Emprunt.id))
+        .join(Emprunt)
+        .group_by(Livre.titre)
+        .order_by(db.func.count(Emprunt.id).desc())
+        .limit(5)
+        .all()
+    )
+    
+    retards = db.query(Emprunt).filter(
+        Emprunt.date_retour_prevue < datetime.utcnow(),
+        Emprunt.date_retour_effectif.is_(None)
     ).count()
     
-    # Emprunts par mois
-    emprunts_par_mois = db.query(
-        db.func.date_part('month', Emprunt.date_emprunt).label('mois'),
-        db.func.count(Emprunt.id).label('nb_emprunts')
-    ).group_by(db.func.date_part('month', Emprunt.date_emprunt)).all()
-    
     return {
-        "top_livres": [{"titre": livre.titre, "nb_emprunts": livre.nb_emprunts} for livre in top_livres],
         "taux_disponibilite": round(taux_disponibilite, 2),
-        "nb_retards": nb_retards,
-        "emprunts_par_mois": [{"mois": int(emp.mois), "nb_emprunts": emp.nb_emprunts} for emp in emprunts_par_mois],
-        "total_adherents": db.query(Adherent).count(),
-        "total_livres": total_livres,
-        "emprunts_actifs": db.query(Emprunt).filter(Emprunt.statut == "en_cours").count()
+        "livres_plus_empruntes": [{"titre": l[0], "emprunts": l[1]} for l in livres_populaires],
+        "nombre_retards": retards
     }
-
-# Notifications
-@app.get("/api/notifications")
-async def get_notifications(
-    current_user: Adherent = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    notifications = db.query(Notification).filter(
-        Notification.id_adherent == current_user.id
-    ).order_by(Notification.date_creation.desc()).all()
     
-    return [
-        {
-            "id": notif.id,
-            "message": notif.message,
-            "date_creation": notif.date_creation.isoformat(),
-            "lu": notif.lu,
-            "type_notification": notif.type_notification
-        }
-        for notif in notifications
-    ]
-
-@app.put("/api/notifications/{notification_id}/read")
-async def mark_notification_read(
-    notification_id: int,
-    current_user: Adherent = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    notification = db.query(Notification).filter(
-        Notification.id == notification_id,
-        Notification.id_adherent == current_user.id
-    ).first()
-    
-    if not notification:
-        raise HTTPException(status_code=404, detail="Notification non trouvée")
-    
-    notification.lu = True
+@app.post("/api/livres")
+def add_livre(titre: str = Form(...), auteur: str = Form(...), description: str = Form(...), image_url: str = Form(...), disponibilite: int = Form(...), db: Session = Depends(get_db), admin: Adherent = Depends(get_current_admin)):
+    new_livre = Livre(titre=titre, auteur=auteur, description=description, image_url=image_url, disponibilite=disponibilite)
+    db.add(new_livre)
     db.commit()
-    
-    return {"message": "Notification marquée comme lue"}
+    # Mettre à jour le modèle de recommandation après l'ajout d'un livre
+    load_or_train_model()
+    return {"message": "Livre ajouté avec succès"}
 
-# Tâche de notification automatique (à exécuter périodiquement)
-@app.post("/api/send-reminders")
-async def send_reminders(
-    current_user: Adherent = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    # Rappels de retour (2 jours avant échéance)
-    date_limite = datetime.utcnow() + timedelta(days=2)
-    emprunts_a_rappeler = db.query(Emprunt).filter(
-        Emprunt.statut == "en_cours",
-        Emprunt.date_retour_prevue <= date_limite,
-        Emprunt.date_retour_prevue > datetime.utcnow()
-    ).all()
-    
-    rappels_envoyes = 0
-    for emprunt in emprunts_a_rappeler:
-        adherent = db.query(Adherent).filter(Adherent.id == emprunt.id_adherent).first()
-        livre = db.query(Livre).filter(Livre.id == emprunt.id_livre).first()
-        
-        # Créer notification
-        notification = Notification(
-            id_adherent=adherent.id,
-            message=f"Rappel: Le livre '{livre.titre}' doit être retourné le {emprunt.date_retour_prevue.strftime('%d/%m/%Y')}",
-            type_notification="rappel_retour"
-        )
-        db.add(notification)
-        
-        # Envoyer email
-        send_notification_email(
-            adherent.email,
-            "Rappel de retour de livre",
-            f"""
-            <h2>Rappel de retour</h2>
-            <p>Bonjour {adherent.nom},</p>
-            <p>Ce message vous rappelle que le livre <strong>"{livre.titre}"</strong> doit être retourné le <strong>{emprunt.date_retour_prevue.strftime('%d/%m/%Y')}</strong>.</p>
-            <p>Merci de penser à le retourner à temps.</p>
-            <p>L'équipe Bib Readers</p>
-            """
-        )
-        
-        rappels_envoyes += 1
-    
+@app.post("/api/livres/delete/{livre_id}")
+def delete_livre(livre_id: int, db: Session = Depends(get_db), admin: Adherent = Depends(get_current_admin)):
+    livre = db.query(Livre).filter(Livre.id == livre_id).first()
+    if not livre:
+        raise HTTPException(status_code=404, detail="Livre non trouvé")
+    db.delete(livre)
     db.commit()
+    # Mettre à jour le modèle de recommandation après la suppression d'un livre
+    load_or_train_model()
+    return {"message": "Livre supprimé"}
+
+@app.post("/api/livres/update/{livre_id}")
+def update_livre(livre_id: int, titre: str = Form(...), auteur: str = Form(...), description: str = Form(...), image_url: str = Form(...), disponibilite: int = Form(...), db: Session = Depends(get_db), admin: Adherent = Depends(get_current_admin)):
+    livre = db.query(Livre).filter(Livre.id == livre_id).first()
+    if not livre:
+        raise HTTPException(status_code=404, detail="Livre non trouvé")
+    livre.titre = titre
+    livre.auteur = auteur
+    livre.description = description
+    livre.image_url = image_url
+    livre.disponibilite = disponibilite
+    db.commit()
+    # Mettre à jour le modèle de recommandation après la modification d'un livre
+    load_or_train_model()
+    return {"message": "Livre mis à jour"}
+
+@app.post("/api/emprunts")
+def emprunter_livre(id_adherent: int = Form(...), id_livre: int = Form(...), date_retour_prevue: str = Form(...), db: Session = Depends(get_db), admin: Adherent = Depends(get_current_admin)):
+    livre = db.query(Livre).filter(Livre.id == id_livre).first()
+    if not livre or livre.disponibilite < 1:
+        raise HTTPException(status_code=400, detail="Livre non disponible")
     
-    return {"message": f"{rappels_envoyes} rappels envoyés"}
+    date_prevue = datetime.strptime(date_retour_prevue, '%Y-%m-%d')
+    new_emprunt = Emprunt(id_adherent=id_adherent, id_livre=id_livre, date_retour_prevue=date_prevue)
+    livre.disponibilite -= 1
+    db.add(new_emprunt)
+    db.commit()
+    return {"message": "Emprunt enregistré"}
 
-# Middleware de sécurité supplémentaire
-@app.middleware("http")
-async def security_headers(request: Request, call_next):
-    response = await call_next(request)
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' cdnjs.cloudflare.com"
-    return response
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+@app.post("/api/retours/{emprunt_id}")
+def retour_livre(emprunt_id: int, db: Session = Depends(get_db), admin: Adherent = Depends(get_current_admin)):
+    emprunt = db.query(Emprunt).filter(Emprunt.id == emprunt_id).first()
+    if not emprunt or emprunt.date_retour_effectif:
+        raise HTTPException(status_code=400, detail="Emprunt invalide ou déjà retourné")
+    
+    emprunt.date_retour_effectif = datetime.utcnow()
+    emprunt.statut = "retourne"
+    emprunt.livre.disponibilite += 1
+    db.commit()
+    return {"message": "Retour enregistré"}
