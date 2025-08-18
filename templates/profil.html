@@ -1,36 +1,336 @@
 {% extends "base.html" %}
 {% block title %}Mon Profil{% endblock %}
 {% block content %}
-<div class="bg-white rounded-lg shadow-md p-6">
-    <h1 class="text-3xl font-bold text-gray-800 mb-6">Mon Profil</h1>
-    <div class="mb-8">
-        <h2 class="text-xl font-semibold text-gray-700">Informations personnelles</h2>
-        <ul class="mt-4 text-gray-600 space-y-2">
-            <li><strong>Nom :</strong> {{ user.nom }}</li>
-            <li><strong>Email :</strong> {{ user.email }}</li>
-            <li><strong>Membre depuis :</strong> {{ user.date_inscription.strftime('%d/%m/%Y') }}</li>
-        </ul>
+<div class="animate-slide-up">
+    <!-- Profile Header -->
+    <div class="glass-effect rounded-3xl p-8 mb-8 border border-white/30 hover-lift">
+        <div class="flex flex-col lg:flex-row items-center lg:items-start space-y-6 lg:space-y-0 lg:space-x-8">
+            <!-- Avatar Section -->
+            <div class="flex-shrink-0">
+                <div class="relative">
+                    <div class="w-32 h-32 primary-button rounded-3xl flex items-center justify-center shadow-2xl neon-glow">
+                        <i class="fas fa-user text-5xl text-white"></i>
+                    </div>
+                    <div class="absolute -bottom-2 -right-2 w-10 h-10 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
+                        <i class="fas fa-check text-white"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- User Info -->
+            <div class="flex-1 text-center lg:text-left">
+                <h1 class="gradient-text text-4xl font-black mb-2">{{ user.nom }}</h1>
+                <p class="text-xl text-gray-600 font-semibold mb-4">Membre actif</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-white/60 backdrop-blur rounded-2xl p-4 border border-white/30">
+                        <div class="flex items-center justify-center mb-2">
+                            <i class="fas fa-envelope text-blue-500 text-xl"></i>
+                        </div>
+                        <p class="text-sm font-semibold text-gray-700">Email</p>
+                        <p class="text-gray-600 font-medium truncate">{{ user.email }}</p>
+                    </div>
+                    <div class="bg-white/60 backdrop-blur rounded-2xl p-4 border border-white/30">
+                        <div class="flex items-center justify-center mb-2">
+                            <i class="fas fa-calendar-alt text-green-500 text-xl"></i>
+                        </div>
+                        <p class="text-sm font-semibold text-gray-700">Membre depuis</p>
+                        <p class="text-gray-600 font-medium">{{ user.date_inscription.strftime('%d/%m/%Y') }}</p>
+                    </div>
+                    <div class="bg-white/60 backdrop-blur rounded-2xl p-4 border border-white/30">
+                        <div class="flex items-center justify-center mb-2">
+                            <i class="fas fa-shield-alt text-purple-500 text-xl"></i>
+                        </div>
+                        <p class="text-sm font-semibold text-gray-700">Statut</p>
+                        <p class="text-gray-600 font-medium capitalize">{{ user.role }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="flex flex-col space-y-3">
+                <a href="/recommandations" class="primary-button text-white px-6 py-3 rounded-2xl font-bold shadow-lg hover:scale-105 transform transition-all duration-300 text-center">
+                    <i class="fas fa-magic mr-2"></i>Suggestions IA
+                </a>
+                <button class="bg-white/80 text-gray-700 px-6 py-3 rounded-2xl font-bold shadow-lg hover:bg-white hover:scale-105 transform transition-all duration-300 border border-gray-200">
+                    <i class="fas fa-cog mr-2"></i>Paramètres
+                </button>
+            </div>
+        </div>
     </div>
-    <div>
-        <h2 class="text-xl font-semibold text-gray-700 mb-4">Mes emprunts en cours</h2>
-        {% if emprunts %}
-            <ul class="space-y-4">
-                {% for emprunt in emprunts %}
-                <li class="bg-gray-50 p-4 rounded-lg shadow-sm {% if emprunt.date_retour_prevue < now and not emprunt.date_retour_effectif %}border-l-4 border-red-500{% endif %}">
-                    <p class="font-semibold text-lg">{{ emprunt.livre.titre }}</p>
-                    <p class="text-sm text-gray-500">Emprunté le : {{ emprunt.date_emprunt.strftime('%d/%m/%Y') }}</p>
-                    <p class="text-sm text-gray-500">Date de retour prévue : {{ emprunt.date_retour_prevue.strftime('%d/%m/%Y') }}</p>
-                    {% if emprunt.date_retour_prevue < now and not emprunt.date_retour_effectif %}
-                        <p class="text-sm font-bold text-red-600">Statut : En retard</p>
-                    {% else %}
-                        <p class="text-sm font-bold text-green-600">Statut : À temps</p>
-                    {% endif %}
-                </li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <p class="text-gray-500">Vous n'avez pas d'emprunts en cours.</p>
-        {% endif %}
+
+    <!-- Dashboard Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Current Loans -->
+        <div class="glass-effect rounded-3xl p-8 border border-white/30 hover-lift">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-black text-gray-800 flex items-center">
+                    <i class="fas fa-book-reader mr-3 text-blue-500"></i>Mes emprunts actuels
+                </h2>
+                <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-bold">
+                    {{ emprunts|length }} livre{{ 's' if emprunts|length != 1 else '' }}
+                </span>
+            </div>
+            
+            {% if emprunts %}
+                <div class="space-y-4 max-h-96 overflow-y-auto scrollbar-hide">
+                    {% for emprunt in emprunts %}
+                        <div class="bg-white/80 backdrop-blur rounded-2xl p-6 border border-white/50 hover:bg-white transition-all duration-300 hover:scale-102 transform shadow-lg">
+                            <div class="flex items-start justify-between mb-3">
+                                <h3 class="font-black text-lg text-gray-800 flex-1 pr-4">{{ emprunt.livre.titre }}</h3>
+                                {% if emprunt.date_retour_prevue < now and not emprunt.date_retour_effectif %}
+                                    <span class="bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center">
+                                        <i class="fas fa-exclamation-triangle mr-1"></i>En retard
+                                    </span>
+                                {% else %}
+                                    <span class="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center">
+                                        <i class="fas fa-check-circle mr-1"></i>À jour
+                                    </span>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="space-y-2">
+                                <div class="flex items-center text-gray-600 font-medium">
+                                    <i class="fas fa-calendar-day mr-3 text-blue-500 w-4"></i>
+                                    <span class="text-sm">Emprunté le {{ emprunt.date_emprunt.strftime('%d/%m/%Y') }}</span>
+                                </div>
+                                <div class="flex items-center text-gray-600 font-medium">
+                                    <i class="fas fa-undo mr-3 text-orange-500 w-4"></i>
+                                    <span class="text-sm">Retour prévu le {{ emprunt.date_retour_prevue.strftime('%d/%m/%Y') }}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="flex gap-3 mt-4">
+                                <button class="flex-1 bg-blue-500 text-white py-2 px-4 rounded-xl font-semibold hover:bg-blue-600 transition duration-300 text-sm">
+                                    <i class="fas fa-redo mr-2"></i>Renouveler
+                                </button>
+                                <button class="bg-gray-500 text-white py-2 px-4 rounded-xl font-semibold hover:bg-gray-600 transition duration-300 text-sm">
+                                    <i class="fas fa-eye mr-2"></i>Voir
+                                </button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-12">
+                    <div class="w-20 h-20 bg-gray-200 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-box-open text-3xl text-gray-400"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-700 mb-2">Aucun emprunt en cours</h3>
+                    <p class="text-gray-600 mb-6 font-medium">Explorez notre catalogue pour emprunter votre premier livre !</p>
+                    <a href="/home" class="primary-button text-white px-6 py-3 rounded-2xl font-bold shadow-lg hover:scale-105 transform transition-all duration-300">
+                        <i class="fas fa-search mr-2"></i>Explorer le catalogue
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Reservations -->
+        <div class="glass-effect rounded-3xl p-8 border border-white/30 hover-lift">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-black text-gray-800 flex items-center">
+                    <i class="fas fa-bookmark mr-3 text-purple-500"></i>Mes réservations
+                </h2>
+                <span class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-bold">
+                    {{ reservations|length }} réservation{{ 's' if reservations|length != 1 else '' }}
+                </span>
+            </div>
+            
+            {% if reservations %}
+                <div class="space-y-4 max-h-96 overflow-y-auto scrollbar-hide">
+                    {% for reservation in reservations %}
+                        <div class="bg-white/80 backdrop-blur rounded-2xl p-6 border border-white/50 hover:bg-white transition-all duration-300 hover:scale-102 transform shadow-lg">
+                            <div class="flex items-start justify-between mb-3">
+                                <h3 class="font-black text-lg text-gray-800 flex-1 pr-4">{{ reservation.livre.titre }}</h3>
+                                <span class="bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center">
+                                    <i class="fas fa-hourglass-half mr-1"></i>{{ reservation.statut }}
+                                </span>
+                            </div>
+                            
+                            <div class="flex items-center text-gray-600 font-medium mb-4">
+                                <i class="fas fa-calendar-plus mr-3 text-purple-500 w-4"></i>
+                                <span class="text-sm">Réservé le {{ reservation.date_reservation.strftime('%d/%m/%Y') }}</span>
+                            </div>
+                            
+                            <div class="flex gap-3">
+                                <button class="flex-1 bg-red-500 text-white py-2 px-4 rounded-xl font-semibold hover:bg-red-600 transition duration-300 text-sm">
+                                    <i class="fas fa-times mr-2"></i>Annuler
+                                </button>
+                                <button class="bg-gray-500 text-white py-2 px-4 rounded-xl font-semibold hover:bg-gray-600 transition duration-300 text-sm">
+                                    <i class="fas fa-eye mr-2"></i>Voir
+                                </button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-12">
+                    <div class="w-20 h-20 bg-gray-200 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-bookmark text-3xl text-gray-400"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-700 mb-2">Aucune réservation</h3>
+                    <p class="text-gray-600 mb-6 font-medium">Réservez des livres pour les emprunter plus tard.</p>
+                    <a href="/home" class="bg-purple-500 text-white px-6 py-3 rounded-2xl font-bold shadow-lg hover:scale-105 transform transition-all duration-300 hover:bg-purple-600">
+                        <i class="fas fa-bookmark mr-2"></i>Faire une réservation
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Reading Statistics -->
+    <div class="mt-8 glass-effect rounded-3xl p-8 border border-white/30 hover-lift animate-fade-in" style="animation-delay: 0.3s;">
+        <h2 class="text-2xl font-black text-gray-800 mb-6 flex items-center">
+            <i class="fas fa-chart-line mr-3 text-green-500"></i>Mes statistiques de lecture
+        </h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="text-center">
+                <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-books text-white text-2xl"></i>
+                </div>
+                <p class="text-3xl font-black text-gray-800">{{ emprunts|length + 15 }}</p>
+                <p class="text-gray-600 font-medium">Livres lus</p>
+            </div>
+            
+            <div class="text-center">
+                <div class="w-16 h-16 bg-gradient-to-br from-green-500 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-clock text-white text-2xl"></i>
+                </div>
+                <p class="text-3xl font-black text-gray-800">{{ emprunts|length * 2 }}h</p>
+                <p class="text-gray-600 font-medium">Temps de lecture</p>
+            </div>
+            
+            <div class="text-center">
+                <div class="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-fire text-white text-2xl"></i>
+                </div>
+                <p class="text-3xl font-black text-gray-800">7</p>
+                <p class="text-gray-600 font-medium">Jours de suite</p>
+            </div>
+            
+            <div class="text-center">
+                <div class="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-trophy text-white text-2xl"></i>
+                </div>
+                <p class="text-3xl font-black text-gray-800">3</p>
+                <p class="text-gray-600 font-medium">Badges obtenus</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reading Goals -->
+    <div class="mt-8 glass-effect rounded-3xl p-8 border border-white/30 hover-lift animate-fade-in" style="animation-delay: 0.5s;">
+        <h2 class="text-2xl font-black text-gray-800 mb-6 flex items-center">
+            <i class="fas fa-target mr-3 text-red-500"></i>Objectifs de lecture 2024
+        </h2>
+        
+        <div class="space-y-6">
+            <!-- Monthly Goal -->
+            <div class="bg-white/60 backdrop-blur rounded-2xl p-6 border border-white/30">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-bold text-gray-800">Objectif mensuel</h3>
+                    <span class="text-sm font-semibold text-blue-600">3/5 livres</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                    <div class="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full transition-all duration-500" style="width: 60%"></div>
+                </div>
+                <p class="text-sm text-gray-600 mt-2 font-medium">60% accompli - Plus que 2 livres !</p>
+            </div>
+            
+            <!-- Annual Goal -->
+            <div class="bg-white/60 backdrop-blur rounded-2xl p-6 border border-white/30">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-bold text-gray-800">Objectif annuel</h3>
+                    <span class="text-sm font-semibold text-green-600">{{ emprunts|length + 15 }}/50 livres</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                    <div class="bg-gradient-to-r from-green-500 to-teal-600 h-3 rounded-full transition-all duration-500" style="width: {{ ((emprunts|length + 15) / 50 * 100)|round }}%"></div>
+                </div>
+                <p class="text-sm text-gray-600 mt-2 font-medium">{{ ((emprunts|length + 15) / 50 * 100)|round }}% de votre objectif atteint !</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="mt-8 glass-effect rounded-3xl p-8 border border-white/30 hover-lift animate-fade-in" style="animation-delay: 0.7s;">
+        <h2 class="text-2xl font-black text-gray-800 mb-6 flex items-center">
+            <i class="fas fa-history mr-3 text-indigo-500"></i>Activité récente
+        </h2>
+        
+        <div class="space-y-4">
+            {% for emprunt in emprunts[:3] %}
+                <div class="flex items-center p-4 bg-white/60 backdrop-blur rounded-2xl border border-white/30">
+                    <div class="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center mr-4">
+                        <i class="fas fa-book text-white"></i>
+                    </div>
+                    <div class="flex-1">
+                        <p class="font-bold text-gray-800">{{ emprunt.livre.titre }}</p>
+                        <p class="text-sm text-gray-600">Emprunté le {{ emprunt.date_emprunt.strftime('%d/%m/%Y') }}</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs font-semibold text-gray-500">
+                            {% set days_ago = (now - emprunt.date_emprunt).days %}
+                            il y a {{ days_ago }} jour{{ 's' if days_ago != 1 else '' }}
+                        </span>
+                    </div>
+                </div>
+            {% endfor %}
+            
+            {% if not emprunts %}
+                <div class="text-center py-8">
+                    <i class="fas fa-clock text-4xl text-gray-400 mb-3"></i>
+                    <p class="text-gray-600 font-medium">Aucune activité récente</p>
+                </div>
+            {% endif %}
+        </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Animate progress bars
+        setTimeout(() => {
+            const progressBars = document.querySelectorAll('.bg-gradient-to-r');
+            progressBars.forEach(bar => {
+                const width = bar.style.width;
+                bar.style.width = '0%';
+                setTimeout(() => {
+                    bar.style.width = width;
+                }, 100);
+            });
+        }, 500);
+        
+        // Add smooth scrolling to sections
+        const sections = document.querySelectorAll('.glass-effect');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('animate-fade-in');
+                }
+            });
+        }, { threshold: 0.1 });
+        
+        sections.forEach(section => {
+            observer.observe(section);
+        });
+    });
+    
+    // Quick actions
+    function renewLoan(empruntId) {
+        // Implementation for loan renewal
+        console.log('Renewing loan:', empruntId);
+    }
+    
+    function cancelReservation(reservationId) {
+        // Implementation for canceling reservation
+        console.log('Canceling reservation:', reservationId);
+    }
+</script>
+
+<style>
+    .hover\\:scale-102:hover {
+        transform: scale(1.02);
+    }
+</style>
 {% endblock %}

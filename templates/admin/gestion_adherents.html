@@ -1,41 +1,586 @@
 {% extends "base.html" %}
 {% block title %}Gestion des adhérents{% endblock %}
 {% block content %}
-<h1 class="text-3xl font-bold text-gray-800 mb-6">Gestion des adhérents</h1>
-<div class="bg-white rounded-lg shadow-md p-6">
-    <table class="min-w-full table-auto">
-        <thead>
-            <tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
-                <th class="py-3 px-6 text-left">Nom</th>
-                <th class="py-3 px-6 text-left">Email</th>
-                <th class="py-3 px-6 text-left">Statut</th>
-                <th class="py-3 px-6 text-center">Actions</th>
-            </tr>
-        </thead>
-        <tbody class="text-gray-600 text-sm font-light">
-            {% for adherent in adherents %}
-                <tr class="border-b border-gray-200 hover:bg-gray-100">
-                    <td class="py-3 px-6 text-left whitespace-nowrap">{{ adherent.nom }}</td>
-                    <td class="py-3 px-6 text-left">{{ adherent.email }}</td>
-                    <td class="py-3 px-6 text-left">
-                        <span class="relative inline-block px-3 py-1 font-semibold text-{{ 'green-900' if adherent.actif else 'red-900' }} leading-tight">
-                            <span aria-hidden="true" class="absolute inset-0 bg-{{ 'green-200' if adherent.actif else 'red-200' }} opacity-50 rounded-full"></span>
-                            <span class="relative">{{ 'Actif' if adherent.actif else 'Suspendu' }}</span>
-                        </span>
-                    </td>
-                    <td class="py-3 px-6 text-center">
-                        <form action="/api/adherents/suspend/{{ adherent.id }}" method="post" class="inline">
-                            <button type="submit" class="bg-yellow-500 text-white py-1 px-3 rounded hover:bg-yellow-700 transition-colors duration-300">
-                                {% if adherent.actif %}Suspendre{% else %}Réactiver{% endif %}
-                            </button>
-                        </form>
-                        <form action="/api/adherents/delete/{{ adherent.id }}" method="post" class="inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet adhérent ?');">
-                            <button type="submit" class="bg-red-500 text-white py-1 px-3 rounded hover:bg-red-700 transition-colors duration-300">Supprimer</button>
-                        </form>
-                    </td>
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="animate-slide-up">
+    <!-- Header -->
+    <div class="glass-effect rounded-3xl p-8 mb-8 border border-white/30 hover-lift">
+        <div class="flex flex-col lg:flex-row items-center justify-between">
+            <div>
+                <h1 class="gradient-text text-5xl font-black mb-3 leading-tight">
+                    Gestion des adhérents 👥
+                </h1>
+                <p class="text-gray-600 text-xl font-medium">
+                    Administrez les comptes membres avec efficacité et sécurité
+                </p>
+            </div>
+            <div class="mt-6 lg:mt-0 flex gap-3">
+                <button onclick="exportUsers()" class="bg-green-500 text-white px-6 py-3 rounded-2xl font-bold shadow-lg hover:bg-green-600 hover:scale-105 transform transition-all duration-300">
+                    <i class="fas fa-download mr-2"></i>Exporter
+                </button>
+                <button onclick="showUserStats()" class="primary-button text-white px-6 py-3 rounded-2xl font-bold shadow-xl hover:scale-105 transform transition-all duration-300">
+                    <i class="fas fa-chart-bar mr-2"></i>Statistiques
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="glass-effect rounded-2xl p-6 text-center border border-white/20 hover-lift">
+            <div class="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center mx-auto mb-3">
+                <i class="fas fa-users text-white"></i>
+            </div>
+            <p class="text-3xl font-black text-gray-800">{{ adherents|length }}</p>
+            <p class="text-sm text-gray-600 font-medium">Total adhérents</p>
+        </div>
+        <div class="glass-effect rounded-2xl p-6 text-center border border-white/20 hover-lift">
+            <div class="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center mx-auto mb-3">
+                <i class="fas fa-user-check text-white"></i>
+            </div>
+            <p class="text-3xl font-black text-gray-800" id="active-count">...</p>
+            <p class="text-sm text-gray-600 font-medium">Actifs</p>
+        </div>
+        <div class="glass-effect rounded-2xl p-6 text-center border border-white/20 hover-lift">
+            <div class="w-12 h-12 bg-red-500 rounded-xl flex items-center justify-center mx-auto mb-3">
+                <i class="fas fa-user-slash text-white"></i>
+            </div>
+            <p class="text-3xl font-black text-gray-800" id="suspended-count">...</p>
+            <p class="text-sm text-gray-600 font-medium">Suspendus</p>
+        </div>
+        <div class="glass-effect rounded-2xl p-6 text-center border border-white/20 hover-lift">
+            <div class="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center mx-auto mb-3">
+                <i class="fas fa-crown text-white"></i>
+            </div>
+            <p class="text-3xl font-black text-gray-800" id="admin-count">...</p>
+            <p class="text-sm text-gray-600 font-medium">Administrateurs</p>
+        </div>
+    </div>
+
+    <!-- Search and Filter -->
+    <div class="glass-effect rounded-3xl p-6 mb-8 border border-white/30">
+        <div class="flex flex-col md:flex-row gap-4">
+            <div class="flex-1 relative">
+                <input type="text" id="search-users" placeholder="Rechercher par nom ou email..." 
+                       class="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-200 focus:border-blue-500 transition-all duration-300 bg-white/90 backdrop-blur font-medium">
+                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <i class="fas fa-search text-gray-400"></i>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <select id="filter-status" class="px-4 py-3 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-200 focus:border-blue-500 transition-all duration-300 bg-white/90 backdrop-blur font-medium">
+                    <option value="">Tous les statuts</option>
+                    <option value="active">Actifs uniquement</option>
+                    <option value="suspended">Suspendus uniquement</option>
+                </select>
+                <select id="filter-role" class="px-4 py-3 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-200 focus:border-blue-500 transition-all duration-300 bg-white/90 backdrop-blur font-medium">
+                    <option value="">Tous les rôles</option>
+                    <option value="adherent">Adhérents</option>
+                    <option value="admin">Administrateurs</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="glass-effect rounded-3xl p-8 border border-white/30 hover-lift">
+        <h2 class="text-3xl font-black text-gray-800 mb-6 flex items-center">
+            <i class="fas fa-address-book mr-3 text-blue-500"></i>Liste des adhérents
+        </h2>
+        
+        <div class="overflow-x-auto">
+            <table class="min-w-full">
+                <thead>
+                    <tr class="bg-gradient-to-r from-gray-100 to-gray-200">
+                        <th class="px-6 py-4 text-left text-sm font-black text-gray-700 uppercase tracking-wider rounded-l-2xl">
+                            <i class="fas fa-user mr-2"></i>Adhérent
+                        </th>
+                        <th class="px-6 py-4 text-left text-sm font-black text-gray-700 uppercase tracking-wider">
+                            <i class="fas fa-envelope mr-2"></i>Contact
+                        </th>
+                        <th class="px-6 py-4 text-left text-sm font-black text-gray-700 uppercase tracking-wider">
+                            <i class="fas fa-calendar mr-2"></i>Inscription
+                        </th>
+                        <th class="px-6 py-4 text-left text-sm font-black text-gray-700 uppercase tracking-wider">
+                            <i class="fas fa-shield-alt mr-2"></i>Rôle & Statut
+                        </th>
+                        <th class="px-6 py-4 text-center text-sm font-black text-gray-700 uppercase tracking-wider rounded-r-2xl">
+                            <i class="fas fa-cogs mr-2"></i>Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for adherent in adherents %}
+                    <tr class="user-row hover:bg-white/80 transition-all duration-300 group" 
+                        data-name="{{ adherent.nom|lower }}" 
+                        data-email="{{ adherent.email|lower }}" 
+                        data-status="{{ 'active' if adherent.actif else 'suspended' }}"
+                        data-role="{{ adherent.role }}">
+                        <td class="px-6 py-6">
+                            <div class="flex items-center">
+                                <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center mr-4 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                                    <i class="fas fa-user text-white"></i>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-gray-900 text-lg">{{ adherent.nom }}</div>
+                                    <div class="text-gray-600 text-sm font-medium">ID: #{{ adherent.id }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-6">
+                            <div class="font-semibold text-gray-800">{{ adherent.email }}</div>
+                            <div class="text-gray-600 text-sm font-medium">
+                                <i class="fas fa-at mr-1"></i>Contact principal
+                            </div>
+                        </td>
+                        <td class="px-6 py-6">
+                            <div class="font-semibold text-gray-800">{{ adherent.date_inscription.strftime('%d/%m/%Y') }}</div>
+                            <div class="text-gray-600 text-sm font-medium">
+                                {% set days_ago = (now - adherent.date_inscription).days %}
+                                il y a {{ days_ago }} jour{{ 's' if days_ago != 1 else '' }}
+                            </div>
+                        </td>
+                        <td class="px-6 py-6">
+                            <div class="space-y-2">
+                                <!-- Role Badge -->
+                                {% if adherent.role == 'admin' %}
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800">
+                                        <i class="fas fa-crown mr-1"></i>Administrateur
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
+                                        <i class="fas fa-user mr-1"></i>Adhérent
+                                    </span>
+                                {% endif %}
+                                
+                                <!-- Status Badge -->
+                                {% if adherent.actif %}
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
+                                        <i class="fas fa-check-circle mr-1"></i>Actif
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800">
+                                        <i class="fas fa-ban mr-1"></i>Suspendu
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="px-6 py-6 text-center">
+                            <div class="flex justify-center space-x-2">
+                                <button onclick="viewUserDetails({{ adherent.id }})" 
+                                        class="bg-blue-500 text-white p-3 rounded-xl hover:bg-blue-600 transition duration-300 shadow-md hover:scale-110 transform" 
+                                        title="Voir les détails">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                
+                                <button onclick="toggleUserStatus({{ adherent.id }}, {{ 'true' if adherent.actif else 'false' }})" 
+                                        class="bg-{{ 'yellow' if adherent.actif else 'green' }}-500 text-white p-3 rounded-xl hover:bg-{{ 'yellow' if adherent.actif else 'green' }}-600 transition duration-300 shadow-md hover:scale-110 transform" 
+                                        title="{{ 'Suspendre' if adherent.actif else 'Réactiver' }}">
+                                    <i class="fas fa-{{ 'user-slash' if adherent.actif else 'user-check' }}"></i>
+                                </button>
+                                
+                                {% if adherent.role != 'admin' %}
+                                <button onclick="deleteUser({{ adherent.id }}, '{{ adherent.nom|escape }}')" 
+                                        class="bg-red-500 text-white p-3 rounded-xl hover:bg-red-600 transition duration-300 shadow-md hover:scale-110 transform" 
+                                        title="Supprimer">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
+
+<!-- User Details Modal -->
+<div id="user-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden transition-all duration-300">
+    <div class="glass-effect rounded-3xl shadow-2xl p-8 w-full max-w-2xl border border-white/30 animate-bounce-in">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-2xl font-black text-gray-900 flex items-center">
+                <i class="fas fa-user-circle mr-3 text-blue-500"></i>Détails de l'adhérent
+            </h3>
+            <button onclick="closeUserModal()" class="text-gray-400 hover:text-gray-600 transition duration-300">
+                <i class="fas fa-times text-2xl"></i>
+            </button>
+        </div>
+        
+        <div id="user-details-content">
+            <!-- Content will be populated by JavaScript -->
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Modal -->
+<div id="stats-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden transition-all duration-300">
+    <div class="glass-effect rounded-3xl shadow-2xl p-8 w-full max-w-4xl border border-white/30 animate-bounce-in">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-2xl font-black text-gray-900 flex items-center">
+                <i class="fas fa-chart-pie mr-3 text-purple-500"></i>Statistiques des adhérents
+            </h3>
+            <button onclick="closeStatsModal()" class="text-gray-400 hover:text-gray-600 transition duration-300">
+                <i class="fas fa-times text-2xl"></i>
+            </button>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div>
+                <h4 class="text-lg font-bold text-gray-800 mb-4">Répartition par statut</h4>
+                <canvas id="statusChart" width="300" height="300"></canvas>
+            </div>
+            <div>
+                <h4 class="text-lg font-bold text-gray-800 mb-4">Inscriptions par mois</h4>
+                <canvas id="registrationChart" width="300" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Calculate stats
+        const users = document.querySelectorAll('.user-row');
+        let activeCount = 0;
+        let suspendedCount = 0;
+        let adminCount = 0;
+        
+        users.forEach(user => {
+            const status = user.dataset.status;
+            const role = user.dataset.role;
+            
+            if (status === 'active') activeCount++;
+            else suspendedCount++;
+            
+            if (role === 'admin') adminCount++;
+        });
+        
+        document.getElementById('active-count').textContent = activeCount;
+        document.getElementById('suspended-count').textContent = suspendedCount;
+        document.getElementById('admin-count').textContent = adminCount;
+        
+        // Search and filter functionality
+        document.getElementById('search-users').addEventListener('input', filterUsers);
+        document.getElementById('filter-status').addEventListener('change', filterUsers);
+        document.getElementById('filter-role').addEventListener('change', filterUsers);
+    });
+    
+    function filterUsers() {
+        const searchTerm = document.getElementById('search-users').value.toLowerCase();
+        const statusFilter = document.getElementById('filter-status').value;
+        const roleFilter = document.getElementById('filter-role').value;
+        const rows = document.querySelectorAll('.user-row');
+        
+        rows.forEach(row => {
+            const name = row.dataset.name;
+            const email = row.dataset.email;
+            const status = row.dataset.status;
+            const role = row.dataset.role;
+            
+            const matchesSearch = !searchTerm || name.includes(searchTerm) || email.includes(searchTerm);
+            const matchesStatus = !statusFilter || status === statusFilter;
+            const matchesRole = !roleFilter || role === roleFilter;
+            
+            if (matchesSearch && matchesStatus && matchesRole) {
+                row.style.display = 'table-row';
+                row.classList.add('animate-fade-in');
+            } else {
+                row.style.display = 'none';
+                row.classList.remove('animate-fade-in');
+            }
+        });
+    }
+    
+    function viewUserDetails(userId) {
+        // Find user data from the table
+        const userRow = document.querySelector(`[onclick*="${userId}"]`).closest('.user-row');
+        const name = userRow.querySelector('.font-bold').textContent;
+        const email = userRow.querySelector('.font-semibold').textContent;
+        const role = userRow.dataset.role;
+        const status = userRow.dataset.status;
+        
+        const content = `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-4">
+                    <div class="bg-white/60 backdrop-blur rounded-2xl p-4 border border-white/30">
+                        <label class="text-sm font-semibold text-gray-600">Nom complet</label>
+                        <p class="text-lg font-bold text-gray-800">${name}</p>
+                    </div>
+                    <div class="bg-white/60 backdrop-blur rounded-2xl p-4 border border-white/30">
+                        <label class="text-sm font-semibold text-gray-600">Adresse email</label>
+                        <p class="text-lg font-bold text-gray-800">${email}</p>
+                    </div>
+                </div>
+                <div class="space-y-4">
+                    <div class="bg-white/60 backdrop-blur rounded-2xl p-4 border border-white/30">
+                        <label class="text-sm font-semibold text-gray-600">Rôle</label>
+                        <p class="text-lg font-bold text-gray-800 capitalize">${role}</p>
+                    </div>
+                    <div class="bg-white/60 backdrop-blur rounded-2xl p-4 border border-white/30">
+                        <label class="text-sm font-semibold text-gray-600">Statut</label>
+                        <p class="text-lg font-bold ${status === 'active' ? 'text-green-600' : 'text-red-600'} capitalize">
+                            ${status === 'active' ? 'Actif' : 'Suspendu'}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-6 pt-6 border-t border-gray-200">
+                <h4 class="text-lg font-bold text-gray-800 mb-4">Actions rapides</h4>
+                <div class="flex flex-wrap gap-3">
+                    <button onclick="toggleUserStatus(${userId}, ${status === 'active'})" 
+                            class="bg-${status === 'active' ? 'yellow' : 'green'}-500 text-white px-6 py-3 rounded-2xl font-semibold hover:scale-105 transform transition-all duration-300 shadow-lg">
+                        <i class="fas fa-${status === 'active' ? 'user-slash' : 'user-check'} mr-2"></i>
+                        ${status === 'active' ? 'Suspendre' : 'Réactiver'}
+                    </button>
+                    <button onclick="sendNotification(${userId})" 
+                            class="bg-blue-500 text-white px-6 py-3 rounded-2xl font-semibold hover:bg-blue-600 hover:scale-105 transform transition-all duration-300 shadow-lg">
+                        <i class="fas fa-bell mr-2"></i>Envoyer notification
+                    </button>
+                    <button onclick="viewUserLoans(${userId})" 
+                            class="bg-purple-500 text-white px-6 py-3 rounded-2xl font-semibold hover:bg-purple-600 hover:scale-105 transform transition-all duration-300 shadow-lg">
+                        <i class="fas fa-history mr-2"></i>Historique emprunts
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('user-details-content').innerHTML = content;
+        document.getElementById('user-modal').classList.remove('hidden');
+    }
+    
+    function closeUserModal() {
+        document.getElementById('user-modal').classList.add('hidden');
+    }
+    
+    function showUserStats() {
+        document.getElementById('stats-modal').classList.remove('hidden');
+        
+        // Create status chart
+        const statusCtx = document.getElementById('statusChart').getContext('2d');
+        const activeCount = parseInt(document.getElementById('active-count').textContent);
+        const suspendedCount = parseInt(document.getElementById('suspended-count').textContent);
+        
+        new Chart(statusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Actifs', 'Suspendus'],
+                datasets: [{
+                    data: [activeCount, suspendedCount],
+                    backgroundColor: [
+                        'rgba(34, 197, 94, 0.8)',
+                        'rgba(239, 68, 68, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(34, 197, 94, 1)',
+                        'rgba(239, 68, 68, 1)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            font: {
+                                size: 14,
+                                weight: 'bold'
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Create registration trend chart (mock data)
+        const registrationCtx = document.getElementById('registrationChart').getContext('2d');
+        new Chart(registrationCtx, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin'],
+                datasets: [{
+                    label: 'Nouvelles inscriptions',
+                    data: [12, 19, 8, 15, 22, 18],
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+    
+    function closeStatsModal() {
+        document.getElementById('stats-modal').classList.add('hidden');
+    }
+    
+    async function toggleUserStatus(userId, currentlyActive) {
+        const action = currentlyActive ? 'suspendre' : 'réactiver';
+        const confirmed = await showCustomConfirm(
+            `${action.charAt(0).toUpperCase() + action.slice(1)} l'adhérent`,
+            `Êtes-vous sûr de vouloir ${action} cet adhérent ?`
+        );
+        
+        if (!confirmed) return;
+        
+        try {
+            const response = await fetch(`/api/adherents/suspend/${userId}`, { method: 'POST' });
+            
+            if (response.ok) {
+                showNotification(`Adhérent ${action} avec succès`, 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                const error = await response.json();
+                showNotification(error.detail || `Erreur lors du ${action}`, 'error');
+            }
+        } catch (error) {
+            showNotification('Erreur de connexion', 'error');
+        }
+    }
+    
+    async function deleteUser(userId, userName) {
+        const confirmed = await showCustomConfirm(
+            'Supprimer l\'adhérent',
+            `Êtes-vous sûr de vouloir supprimer "${userName}" ? Cette action est irréversible et supprimera également tout l'historique de cet utilisateur.`
+        );
+        
+        if (!confirmed) return;
+        
+        try {
+            const response = await fetch(`/api/adherents/delete/${userId}`, { method: 'POST' });
+            
+            if (response.ok) {
+                showNotification('Adhérent supprimé avec succès', 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                const error = await response.json();
+                showNotification(error.detail || 'Erreur lors de la suppression', 'error');
+            }
+        } catch (error) {
+            showNotification('Erreur de connexion', 'error');
+        }
+    }
+    
+    function exportUsers() {
+        const headers = ['ID', 'Nom', 'Email', 'Rôle', 'Statut', 'Date inscription'];
+        const rows = [];
+        
+        document.querySelectorAll('.user-row').forEach(row => {
+            const cells = row.querySelectorAll('td');
+            const userData = [
+                row.querySelector('[id]')?.textContent.split('#')[1] || '',
+                cells[0]?.querySelector('.font-bold')?.textContent || '',
+                cells[1]?.querySelector('.font-semibold')?.textContent || '',
+                row.dataset.role || '',
+                row.dataset.status || '',
+                cells[2]?.querySelector('.font-semibold')?.textContent || ''
+            ];
+            rows.push(userData);
+        });
+        
+        const csvContent = [headers, ...rows].map(row => 
+            row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(',')
+        ).join('\n');
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `adherents_export_${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+        
+        showNotification('Export CSV généré avec succès', 'success');
+    }
+    
+    function sendNotification(userId) {
+        showNotification('Fonctionnalité de notification en développement', 'info');
+    }
+    
+    function viewUserLoans(userId) {
+        showNotification('Redirection vers l\'historique des emprunts', 'info');
+        // Could redirect to a detailed loan history page
+    }
+    
+    function showCustomConfirm(title, message) {
+        return new Promise((resolve) => {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in';
+            modal.innerHTML = `
+                <div class="glass-effect rounded-3xl p-8 max-w-md w-full border border-white/30 animate-bounce-in">
+                    <div class="text-center mb-6">
+                        <div class="w-16 h-16 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-question-circle text-white text-2xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-900 mb-2">${title}</h3>
+                        <p class="text-gray-600 font-medium">${message}</p>
+                    </div>
+                    <div class="flex gap-4">
+                        <button onclick="resolveConfirm(false)" class="flex-1 bg-gray-500 text-white py-3 px-6 rounded-2xl font-bold hover:bg-gray-600 transition duration-300">
+                            <i class="fas fa-times mr-2"></i>Annuler
+                        </button>
+                        <button onclick="resolveConfirm(true)" class="flex-1 primary-button text-white py-3 px-6 rounded-2xl font-bold hover:scale-105 transform transition-all duration-300">
+                            <i class="fas fa-check mr-2"></i>Confirmer
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            window.resolveConfirm = (result) => {
+                modal.remove();
+                resolve(result);
+                delete window.resolveConfirm;
+            };
+            
+            document.body.appendChild(modal);
+        });
+    }
+    
+    function showNotification(message, type) {
+        const colors = {
+            success: 'bg-green-500',
+            error: 'bg-red-500',
+            info: 'bg-blue-500'
+        };
+        
+        const icons = {
+            success: 'check-circle',
+            error: 'exclamation-triangle',
+            info: 'info-circle'
+        };
+        
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 z-50 p-4 rounded-2xl shadow-2xl font-semibold animate-bounce-in text-white ${colors[type] || colors.info}`;
+        notification.innerHTML = `
+            <div class="flex items-center">
+                <i class="fas fa-${icons[type] || icons.info} mr-3"></i>
+                ${message}
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateX(100px)';
+            setTimeout(() => notification.remove(), 300);
+        }, 4000);
+    }
+</script>
 {% endblock %}

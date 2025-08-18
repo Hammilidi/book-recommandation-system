@@ -1,32 +1,187 @@
 {% extends "base.html" %}
 {% block title %}Inscription{% endblock %}
 {% block content %}
-<div class="max-w-lg mx-auto bg-white p-8 border border-gray-300 rounded-lg shadow-md mt-10">
-    <h2 class="text-2xl font-bold text-center mb-6 text-blue-600">Inscription</h2>
-    <form action="/api/register" method="post" id="register-form">
-        <div class="mb-4">
-            <label for="nom" class="block text-gray-700 text-sm font-bold mb-2">Nom complet</label>
-            <input type="text" id="nom" name="nom" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+<div class="min-h-screen flex items-center justify-center relative">
+    <!-- Decorative floating elements -->
+    <div class="absolute top-16 right-20 floating-element">
+        <div class="w-20 h-20 bg-gradient-to-br from-blue-400 to-purple-600 rounded-2xl rotate-12 flex items-center justify-center">
+            <i class="fas fa-graduation-cap text-white text-2xl"></i>
         </div>
-        <div class="mb-4">
-            <label for="email" class="block text-gray-700 text-sm font-bold mb-2">Adresse e-mail</label>
-            <input type="email" id="email" name="email" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+    </div>
+    <div class="absolute bottom-40 left-16 floating-element" style="animation-delay: 3s;">
+        <div class="w-16 h-16 bg-gradient-to-br from-green-400 to-blue-600 rounded-full flex items-center justify-center">
+            <i class="fas fa-lightbulb text-white text-xl"></i>
         </div>
-        <div class="mb-4">
-            <label for="password" class="block text-gray-700 text-sm font-bold mb-2">Mot de passe</label>
-            <input type="password" id="password" name="password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+    </div>
+    
+    <div class="w-full max-w-lg animate-slide-up">
+        <div class="glass-effect rounded-3xl p-8 shadow-2xl border border-white/30 hover-lift">
+            <!-- Header -->
+            <div class="text-center mb-8">
+                <div class="relative mx-auto mb-6">
+                    <div class="primary-button w-24 h-24 rounded-3xl flex items-center justify-center mx-auto neon-glow">
+                        <i class="fas fa-user-plus text-4xl text-white"></i>
+                    </div>
+                    <div class="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                        <i class="fas fa-check text-white text-sm"></i>
+                    </div>
+                </div>
+                <h2 class="gradient-text text-4xl font-black mb-3">Rejoignez-nous</h2>
+                <p class="text-gray-600 font-medium">Créez votre compte et découvrez des milliers de livres</p>
+            </div>
+            
+            <!-- Registration Form -->
+            <form action="/api/register" method="post" id="register-form" class="space-y-6">
+                <div class="relative">
+                    <label for="nom" class="block text-gray-700 font-semibold mb-2 text-sm">Nom complet</label>
+                    <div class="relative">
+                        <input type="text" id="nom" name="nom" 
+                               class="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-200 focus:border-blue-500 transition-all duration-300 bg-white/80 backdrop-blur font-medium" 
+                               required placeholder="Jean Dupont">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <i class="fas fa-user text-gray-400"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="relative">
+                    <label for="email" class="block text-gray-700 font-semibold mb-2 text-sm">Adresse e-mail</label>
+                    <div class="relative">
+                        <input type="email" id="email" name="email" 
+                               class="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-200 focus:border-blue-500 transition-all duration-300 bg-white/80 backdrop-blur font-medium" 
+                               required placeholder="jean@email.com">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <i class="fas fa-envelope text-gray-400"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="relative">
+                    <label for="password" class="block text-gray-700 font-semibold mb-2 text-sm">Mot de passe</label>
+                    <div class="relative">
+                        <input type="password" id="password" name="password" 
+                               class="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-200 focus:border-blue-500 transition-all duration-300 bg-white/80 backdrop-blur font-medium" 
+                               required placeholder="••••••••••">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <i class="fas fa-lock text-gray-400"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="relative">
+                    <label for="password-confirm" class="block text-gray-700 font-semibold mb-2 text-sm">Confirmer le mot de passe</label>
+                    <div class="relative">
+                        <input type="password" id="password-confirm" name="password_confirm" 
+                               class="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-200 focus:border-blue-500 transition-all duration-300 bg-white/80 backdrop-blur font-medium" 
+                               required placeholder="••••••••••">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <i class="fas fa-shield-alt text-gray-400"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="w-full primary-button text-white font-bold py-4 px-6 rounded-2xl shadow-xl text-lg relative overflow-hidden group">
+                    <span class="relative z-10 flex items-center justify-center">
+                        <i class="fas fa-rocket mr-3"></i>Créer mon compte
+                    </span>
+                </button>
+            </form>
+            
+            <div id="error-message" class="mt-6 text-center font-medium"></div>
+            
+            <!-- Login Link -->
+            <div class="text-center mt-8 pt-6 border-t border-gray-200">
+                <p class="text-gray-600 font-medium">
+                    Déjà membre ? 
+                    <a href="/" class="gradient-text font-bold hover:underline transition duration-300 ml-1">
+                        Se connecter
+                    </a>
+                </p>
+            </div>
         </div>
-        <div class="mb-6">
-            <label for="password-confirm" class="block text-gray-700 text-sm font-bold mb-2">Confirmer le mot de passe</label>
-            <input type="password" id="password-confirm" name="password_confirm" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" required>
+        
+        <!-- Features Preview -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8 animate-fade-in" style="animation-delay: 0.7s;">
+            <div class="glass-effect rounded-2xl p-6 text-center border border-white/20 hover-lift">
+                <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-search text-white"></i>
+                </div>
+                <h3 class="font-bold text-gray-800 mb-2">Recherche Intelligente</h3>
+                <p class="text-sm text-gray-600">Trouvez le livre parfait grâce à notre IA</p>
+            </div>
+            <div class="glass-effect rounded-2xl p-6 text-center border border-white/20 hover-lift">
+                <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-teal-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-mobile-alt text-white"></i>
+                </div>
+                <h3 class="font-bold text-gray-800 mb-2">Interface Moderne</h3>
+                <p class="text-sm text-gray-600">Design responsive et intuitif</p>
+            </div>
         </div>
-        <div class="flex items-center justify-between">
-            <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full">S'inscrire</button>
-        </div>
-    </form>
-    <div id="error-message" class="mt-4 text-red-500 text-center"></div>
-    <p class="text-center text-gray-600 text-sm mt-4">
-        Déjà un compte ? <a href="/" class="text-blue-500 hover:text-blue-800">Se connecter</a>
-    </p>
+    </div>
 </div>
+
+<script>
+    document.getElementById('register-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const errorDiv = document.getElementById('error-message');
+        
+        // Validation côté client
+        const password = formData.get('password');
+        const passwordConfirm = formData.get('password_confirm');
+        
+        if (password !== passwordConfirm) {
+            errorDiv.innerHTML = '<div class="bg-red-100 text-red-700 p-4 rounded-2xl font-semibold"><i class="fas fa-exclamation-triangle mr-2"></i>Les mots de passe ne correspondent pas</div>';
+            return;
+        }
+        
+        try {
+            // Convert FormData to JSON
+            const jsonData = {};
+            for (let [key, value] of formData) {
+                jsonData[key] = value;
+            }
+            
+            const response = await fetch('/api/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(jsonData)
+            });
+            
+            if (response.ok) {
+                errorDiv.innerHTML = '<div class="bg-green-100 text-green-700 p-4 rounded-2xl font-semibold"><i class="fas fa-check-circle mr-2"></i>Inscription réussie ! Redirection...</div>';
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
+            } else {
+                const error = await response.json();
+                errorDiv.innerHTML = `<div class="bg-red-100 text-red-700 p-4 rounded-2xl font-semibold"><i class="fas fa-exclamation-triangle mr-2"></i>${error.detail}</div>`;
+            }
+        } catch (error) {
+            errorDiv.innerHTML = '<div class="bg-red-100 text-red-700 p-4 rounded-2xl font-semibold"><i class="fas fa-exclamation-triangle mr-2"></i>Erreur de connexion</div>';
+        }
+    });
+    
+    // Password strength indicator
+    document.getElementById('password').addEventListener('input', function() {
+        const password = this.value;
+        const strengthIndicator = document.getElementById('password-strength');
+        
+        let strength = 0;
+        if (password.length >= 8) strength++;
+        if (/[A-Z]/.test(password)) strength++;
+        if (/[0-9]/.test(password)) strength++;
+        if (/[^A-Za-z0-9]/.test(password)) strength++;
+        
+        const colors = ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-green-500'];
+        const texts = ['Faible', 'Moyen', 'Bon', 'Excellent'];
+        
+        if (strengthIndicator) {
+            strengthIndicator.className = `text-xs font-medium ${colors[strength-1] ? 'text-white' : 'text-gray-500'}`;
+            strengthIndicator.textContent = strength > 0 ? texts[strength-1] : '';
+        }
+    });
+</script>
 {% endblock %}

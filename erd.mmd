@@ -1,0 +1,68 @@
+erDiagram
+    ADHERENTS {
+        int id PK
+        string nom
+        string email
+        string password_hash
+        string role
+        datetime date_inscription
+        boolean actif
+    }
+
+    LIVRES {
+        int id PK
+        string titre
+        text description
+        float prix
+        string image_url
+        int disponibilite
+        int note
+    }
+
+    EMPRUNTS {
+        int id PK
+        int id_adherent FK
+        int id_livre FK
+        datetime date_emprunt
+        datetime date_retour_prevue
+        datetime date_retour_effectif
+        string statut
+    }
+
+    RESERVATIONS {
+        int id PK
+        int id_adherent FK
+        int id_livre FK
+        datetime date_reservation
+        string statut
+    }
+
+    HISTORIQUE_EMPRUNTS {
+        int id PK
+        int id_adherent
+        int id_livre
+        datetime date_emprunt
+    }
+
+    NOTIFICATIONS {
+        int id PK
+        int id_adherent FK
+        text message
+        datetime date_creation
+        boolean lu
+    }
+
+    
+
+
+    ADHERENTS ||--o{ EMPRUNTS : "fait"
+    LIVRES ||--o{ EMPRUNTS : "concerne"
+
+    ADHERENTS ||--o{ HISTORIQUE_EMPRUNTS : "fait"
+    LIVRES ||--o{ HISTORIQUE_EMPRUNTS : "concerne"
+
+    ADHERENTS ||--o{ RESERVATIONS : "fait"
+    LIVRES ||--o{ RESERVATIONS : "concerne"
+
+    ADHERENTS ||--o{ NOTIFICATIONS : "reçoit"
+

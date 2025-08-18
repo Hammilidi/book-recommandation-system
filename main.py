@@ -5,7 +5,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Boolean, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Boolean, ForeignKey, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session, relationship
 from passlib.context import CryptContext
@@ -106,8 +106,8 @@ class Livre(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     titre = Column(String(500), nullable=False, index=True)
-    auteur = Column(String(255))
     description = Column(Text)
+    prix = Column(Float)
     image_url = Column(String(500))
     disponibilite = Column(Integer, default=1)
     note = Column(Integer, default=0)
@@ -405,6 +405,37 @@ def register_user(request: Request, user: UserCreate, db: Session = Depends(get_
     db.refresh(new_user)
     return new_user
 
+# Nouvelle route pour créer un utilisateur avec le rôle "admin"
+@app.post("/api/admin/create", status_code=status.HTTP_201_CREATED, response_model=AdherentOut)
+def create_admin_user(request: Request, user: UserCreate, db: Session = Depends(get_db)):
+    # Vérifier si un administrateur existe déjà dans la base de données
+    if db.query(Adherent).filter(Adherent.role == "admin").first():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Un administrateur existe déjà.")
+    
+    if not user.password_match:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Les mots de passe ne correspondent pas")
+    
+    try:
+        validate_email(user.email)
+    except EmailNotValidError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Adresse e-mail invalide")
+    
+    # Vérifier si l'email est déjà utilisé par un autre adhérent
+    if db.query(Adherent).filter(Adherent.email == user.email).first():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cette adresse e-mail est déjà utilisée")
+
+    hashed_password = pwd_context.hash(user.password)
+    new_admin = Adherent(
+        nom=user.nom,
+        email=user.email,
+        password_hash=hashed_password,
+        role="admin"  # Définir le rôle comme "admin"
+    )
+    db.add(new_admin)
+    db.commit()
+    db.refresh(new_admin)
+    return new_admin
+
 @app.post("/api/login", response_class=JSONResponse)
 @limiter.limit("5/minute")
 def login(request: Request, response: Response, db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
@@ -485,7 +516,7 @@ def get_mes_emprunts(db: Session = Depends(get_db), user: Adherent = Depends(get
             date_retour_prevue=emprunt.date_retour_prevue,
             statut="en retard" if emprunt.date_retour_prevue < datetime.utcnow() and not emprunt.date_retour_effectif else emprunt.statut
         )
-        emprunts_out.append(emprunt_out)
+        emprunts_out.append(emprunts_out)
     return emprunts_out
 
 @app.post("/api/recommander-par-description", response_model=List[LivreOut])

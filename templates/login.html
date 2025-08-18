@@ -1,24 +1,126 @@
 {% extends "base.html" %}
 {% block title %}Connexion{% endblock %}
 {% block content %}
-<div class="max-w-md mx-auto bg-white p-8 border border-gray-300 rounded-lg shadow-md mt-10">
-    <h2 class="text-2xl font-bold text-center mb-6 text-blue-600">Connexion</h2>
-    <form action="/api/login" method="post" id="login-form">
-        <div class="mb-4">
-            <label for="email" class="block text-gray-700 text-sm font-bold mb-2">Adresse e-mail</label>
-            <input type="email" id="email" name="username" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+<div class="min-h-screen flex items-center justify-center relative">
+    <!-- Decorative floating elements -->
+    <div class="absolute top-20 left-20 floating-element">
+        <div class="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
+            <i class="fas fa-book text-white text-2xl"></i>
         </div>
-        <div class="mb-6">
-            <label for="password" class="block text-gray-700 text-sm font-bold mb-2">Mot de passe</label>
-            <input type="password" id="password" name="password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" required>
+    </div>
+    <div class="absolute top-40 right-32 floating-element" style="animation-delay: 2s;">
+        <div class="w-12 h-12 bg-white/15 rounded-full flex items-center justify-center">
+            <i class="fas fa-bookmark text-white text-lg"></i>
         </div>
-        <div class="flex items-center justify-between">
-            <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full">Se connecter</button>
+    </div>
+    <div class="absolute bottom-32 left-32 floating-element" style="animation-delay: 4s;">
+        <div class="w-14 h-14 bg-white/10 rounded-full flex items-center justify-center">
+            <i class="fas fa-users text-white text-xl"></i>
         </div>
-    </form>
-    <div id="error-message" class="mt-4 text-red-500 text-center"></div>
-    <p class="text-center text-gray-600 text-sm mt-4">
-        Pas encore de compte ? <a href="/inscription" class="text-blue-500 hover:text-blue-800">S'inscrire</a>
-    </p>
+    </div>
+    
+    <div class="w-full max-w-md animate-bounce-in">
+        <div class="glass-effect rounded-3xl p-8 shadow-2xl border border-white/30 hover-lift">
+            <!-- Header -->
+            <div class="text-center mb-8">
+                <div class="primary-button w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 neon-glow">
+                    <i class="fas fa-user-lock text-3xl text-white"></i>
+                </div>
+                <h2 class="gradient-text text-4xl font-black mb-2">Bienvenue</h2>
+                <p class="text-gray-600 font-medium">Connectez-vous à votre espace personnel</p>
+            </div>
+            
+            <!-- Login Form -->
+            <form action="/api/login" method="post" id="login-form" class="space-y-6">
+                <div class="relative">
+                    <label for="email" class="block text-gray-700 font-semibold mb-2 text-sm">Adresse e-mail</label>
+                    <div class="relative">
+                        <input type="email" id="email" name="username" 
+                               class="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-200 focus:border-blue-500 transition-all duration-300 bg-white/80 backdrop-blur font-medium" 
+                               required placeholder="votre@email.com">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <i class="fas fa-envelope text-gray-400"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="relative">
+                    <label for="password" class="block text-gray-700 font-semibold mb-2 text-sm">Mot de passe</label>
+                    <div class="relative">
+                        <input type="password" id="password" name="password" 
+                               class="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-200 focus:border-blue-500 transition-all duration-300 bg-white/80 backdrop-blur font-medium" 
+                               required placeholder="••••••••">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <i class="fas fa-lock text-gray-400"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="w-full primary-button text-white font-bold py-4 px-6 rounded-2xl shadow-xl text-lg relative overflow-hidden">
+                    <span class="relative z-10">
+                        <i class="fas fa-sign-in-alt mr-3"></i>Se connecter
+                    </span>
+                </button>
+            </form>
+            
+            <div id="error-message" class="mt-6 text-center font-medium"></div>
+            
+            <!-- Registration Link -->
+            <div class="text-center mt-8 pt-6 border-t border-gray-200">
+                <p class="text-gray-600 font-medium">
+                    Nouveau membre ? 
+                    <a href="/inscription" class="gradient-text font-bold hover:underline transition duration-300 ml-1">
+                        Rejoignez-nous
+                    </a>
+                </p>
+            </div>
+        </div>
+        
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-3 gap-4 mt-8 animate-fade-in" style="animation-delay: 0.5s;">
+            <div class="glass-effect rounded-2xl p-4 text-center border border-white/20 hover-lift">
+                <i class="fas fa-book text-blue-500 text-2xl mb-2"></i>
+                <p class="text-sm font-semibold text-gray-700">1000+</p>
+                <p class="text-xs text-gray-500">Livres</p>
+            </div>
+            <div class="glass-effect rounded-2xl p-4 text-center border border-white/20 hover-lift">
+                <i class="fas fa-users text-green-500 text-2xl mb-2"></i>
+                <p class="text-sm font-semibold text-gray-700">500+</p>
+                <p class="text-xs text-gray-500">Membres</p>
+            </div>
+            <div class="glass-effect rounded-2xl p-4 text-center border border-white/20 hover-lift">
+                <i class="fas fa-robot text-purple-500 text-2xl mb-2"></i>
+                <p class="text-sm font-semibold text-gray-700">IA</p>
+                <p class="text-xs text-gray-500">Suggestions</p>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script>
+    document.getElementById('login-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const errorDiv = document.getElementById('error-message');
+        
+        try {
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (response.ok) {
+                errorDiv.innerHTML = '<div class="bg-green-100 text-green-700 p-4 rounded-2xl font-semibold"><i class="fas fa-check-circle mr-2"></i>Connexion réussie !</div>';
+                setTimeout(() => {
+                    window.location.href = '/home';
+                }, 1000);
+            } else {
+                const error = await response.json();
+                errorDiv.innerHTML = `<div class="bg-red-100 text-red-700 p-4 rounded-2xl font-semibold"><i class="fas fa-exclamation-triangle mr-2"></i>${error.detail}</div>`;
+            }
+        } catch (error) {
+            errorDiv.innerHTML = '<div class="bg-red-100 text-red-700 p-4 rounded-2xl font-semibold"><i class="fas fa-exclamation-triangle mr-2"></i>Erreur de connexion</div>';
+        }
+    });
+</script>
 {% endblock %}
