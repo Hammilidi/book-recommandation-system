@@ -1,120 +1,124 @@
 {% extends "base.html" %}
 {% block title %}Gestion des Livres{% endblock %}
 {% block content %}
-<h1 class="text-4xl font-extrabold text-gray-800 mb-6">Gestion des livres 📖</h1>
-<p class="text-gray-600 mb-8 font-light">
-    Ajoutez, modifiez ou supprimez des livres de la collection.
-</p>
-
-<div class="bg-white rounded-3xl shadow-xl p-8 mb-8 animate-fade-in">
-    <h2 class="text-2xl font-bold mb-6 text-gray-700 flex items-center">
-        <i class="fas fa-plus-circle mr-3 text-blue-500"></i>Ajouter un nouveau livre
-    </h2>
-    <form id="add-livre-form" class="space-y-4">
-        <div>
-            <label for="titre" class="block text-sm font-semibold text-gray-700 mb-1">Titre</label>
-            <input type="text" id="titre" name="titre" class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 px-3 transition duration-200" required>
+<div class="animate-slide-up">
+    <div class="glass-effect rounded-3xl p-8 mb-8 border border-white/30 hover-lift">
+        <div class="flex flex-col lg:flex-row items-center justify-between">
+            <div>
+                <h1 class="gradient-text text-5xl font-black mb-3 leading-tight">
+                    Gestion des livres 📖
+                </h1>
+                <p class="text-gray-600 text-xl font-medium">
+                    Ajoutez, modifiez ou supprimez des livres de la collection.
+                </p>
+            </div>
         </div>
-        <div>
-            <label for="auteur" class="block text-sm font-semibold text-gray-700 mb-1">Auteur</label>
-            <input type="text" id="auteur" name="auteur" class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 px-3 transition duration-200" required>
-        </div>
-        <div>
-            <label for="description" class="block text-sm font-semibold text-gray-700 mb-1">Description</label>
-            <textarea id="description" name="description" rows="3" class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 px-3 transition duration-200" required></textarea>
-        </div>
-        <div>
-            <label for="image_url" class="block text-sm font-semibold text-gray-700 mb-1">URL de l'image</label>
-            <input type="url" id="image_url" name="image_url" class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 px-3 transition duration-200" required>
-        </div>
-        <div>
-            <label for="disponibilite" class="block text-sm font-semibold text-gray-700 mb-1">Disponibilité</label>
-            <input type="number" id="disponibilite" name="disponibilite" value="1" min="0" class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 px-3 transition duration-200" required>
-        </div>
-        <button type="submit" class="bg-blue-600 text-white py-3 px-6 rounded-xl hover:bg-blue-700 transition-colors duration-300 font-bold shadow-lg transform hover:scale-105">
-            <i class="fas fa-plus mr-2"></i>Ajouter le livre
-        </button>
-    </form>
-</div>
-
-<div class="bg-white rounded-3xl shadow-xl p-8 animate-fade-in delay-200">
-    <h2 class="text-2xl font-bold mb-6 text-gray-700 flex items-center">
-        <i class="fas fa-list-ul mr-3 text-green-500"></i>Liste des livres
-    </h2>
-    <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Titre</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Auteur</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Disponibilité</th>
-                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-                {% for livre in livres %}
-                <tr class="hover:bg-gray-50 transition-colors duration-200">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ livre.titre }}</td>
-                    <!-- <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ livre.auteur }}</td> -->
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ livre.disponibilite }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button class="text-blue-600 hover:text-blue-900 mr-4 transition duration-200" onclick="showEditModal({{ livre.id }}, '{{ livre.titre | escape }}', '{{ livre.auteur | escape }}', '{{ livre.description | escape }}', '{{ livre.image_url | escape }}', {{ livre.disponibilite }})">
-                            <i class="fas fa-edit"></i> Modifier
-                        </button>
-                        <form action="/api/livres/delete/{{ livre.id }}" method="post" class="inline" onsubmit="return confirm('Voulez-vous vraiment supprimer ce livre ?')">
-                            <button type="submit" class="text-red-600 hover:text-red-900 transition duration-200">
-                                <i class="fas fa-trash-alt"></i> Supprimer
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
     </div>
-</div>
+    
+    <div class="glass-effect rounded-3xl p-8 mb-8 border border-white/30 hover-lift animate-fade-in">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+            <i class="fas fa-plus-circle mr-3 text-blue-500"></i>Ajouter un nouveau livre
+        </h2>
+        <form id="add-livre-form" class="space-y-4">
+            <div>
+                <label for="add-titre" class="block text-sm font-semibold text-gray-700 mb-1">Titre</label>
+                <input type="text" id="add-titre" name="titre" class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 px-3 transition duration-200" required>
+            </div>
+            <div>
+                <label for="add-auteur" class="block text-sm font-semibold text-gray-700 mb-1">Auteur</label>
+                <input type="text" id="add-auteur" name="auteur" class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 px-3 transition duration-200" required>
+            </div>
+            <div>
+                <label for="add-description" class="block text-sm font-semibold text-gray-700 mb-1">Description</label>
+                <textarea id="add-description" name="description" rows="4" class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 px-3 transition duration-200"></textarea>
+            </div>
+            <div>
+                <label for="add-image_url" class="block text-sm font-semibold text-gray-700 mb-1">URL de l'image de couverture</label>
+                <input type="text" id="add-image_url" name="image_url" class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 px-3 transition duration-200">
+            </div>
+            <div>
+                <label for="add-disponibilite" class="block text-sm font-semibold text-gray-700 mb-1">Stock disponible</label>
+                <input type="number" id="add-disponibilite" name="disponibilite" class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 px-3 transition duration-200" required>
+            </div>
+            <button type="submit" class="w-full primary-button text-white font-bold py-3 px-6 rounded-2xl shadow-xl hover:scale-105 transform transition-all duration-300">
+                <i class="fas fa-plus mr-2"></i>Ajouter le livre
+            </button>
+        </form>
+    </div>
+    
+    <div class="glass-effect rounded-3xl p-8 border border-white/30 hover-lift animate-fade-in">
+        <h2 class="text-2xl font-black text-gray-800 mb-6 flex items-center">
+            <i class="fas fa-book mr-3 text-green-500"></i>Collection de livres
+        </h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-white rounded-2xl shadow-sm">
+                <thead>
+                    <tr class="bg-gray-100/80">
+                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider rounded-tl-2xl">Titre</th>
+                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Auteur</th>
+                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Stock</th>
+                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider rounded-tr-2xl">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for livre in livres %}
+                        <tr class="hover:bg-gray-50 transition-colors duration-200">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ livre.titre }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ livre.auteur }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ livre.disponibilite }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <button onclick="openEditModal({{ livre.id }}, '{{ livre.titre }}', '{{ livre.auteur }}', '{{ livre.description }}', '{{ livre.image_url }}', {{ livre.disponibilite }})" class="text-indigo-600 hover:text-indigo-900">
+                                    <i class="fas fa-edit"></i> Modifier
+                                </button>
+                                <button onclick="deleteLivre({{ livre.id }})" class="text-red-600 hover:text-red-900 ml-4">
+                                    <i class="fas fa-trash"></i> Supprimer
+                                </button>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 
-<div id="edit-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50 hidden transition-opacity duration-300">
-    <div class="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-lg transform scale-95 transition-transform duration-300">
-        <div class="mt-3 text-center">
-            <h3 class="text-2xl font-bold text-gray-900 mb-4">Modifier le livre</h3>
-            <form id="edit-livre-form" class="mt-4 text-left space-y-4">
+    <div id="edit-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 transition-opacity duration-300">
+        <div class="relative top-20 mx-auto p-5 border w-4/5 md:w-3/5 lg:w-2/5 shadow-lg rounded-md bg-white animate-fade-in">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-2xl font-bold text-gray-800">Modifier le livre</h3>
+                <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+            </div>
+            <form id="edit-livre-form" class="space-y-4">
                 <input type="hidden" id="edit-id" name="id">
                 <div>
-                    <label for="edit-titre" class="block text-sm font-medium text-gray-700">Titre</label>
-                    <input type="text" id="edit-titre" name="titre" class="mt-1 w-full rounded-xl border-gray-300 shadow-sm py-2 px-3 focus:border-blue-500 focus:ring-blue-500 transition duration-200">
+                    <label for="edit-titre" class="block text-sm font-semibold text-gray-700 mb-1">Titre</label>
+                    <input type="text" id="edit-titre" name="titre" class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 px-3 transition duration-200" required>
                 </div>
                 <div>
-                    <label for="edit-auteur" class="block text-sm font-medium text-gray-700">Auteur</label>
-                    <input type="text" id="edit-auteur" name="auteur" class="mt-1 w-full rounded-xl border-gray-300 shadow-sm py-2 px-3 focus:border-blue-500 focus:ring-blue-500 transition duration-200">
+                    <label for="edit-auteur" class="block text-sm font-semibold text-gray-700 mb-1">Auteur</label>
+                    <input type="text" id="edit-auteur" name="auteur" class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 px-3 transition duration-200" required>
                 </div>
                 <div>
-                    <label for="edit-description" class="block text-sm font-medium text-gray-700">Description</label>
-                    <textarea id="edit-description" name="description" rows="3" class="mt-1 w-full rounded-xl border-gray-300 shadow-sm py-2 px-3 focus:border-blue-500 focus:ring-blue-500 transition duration-200"></textarea>
+                    <label for="edit-description" class="block text-sm font-semibold text-gray-700 mb-1">Description</label>
+                    <textarea id="edit-description" name="description" rows="4" class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 px-3 transition duration-200"></textarea>
                 </div>
                 <div>
-                    <label for="edit-image_url" class="block text-sm font-medium text-gray-700">URL de l'image</label>
-                    <input type="text" id="edit-image_url" name="image_url" class="mt-1 w-full rounded-xl border-gray-300 shadow-sm py-2 px-3 focus:border-blue-500 focus:ring-blue-500 transition duration-200">
+                    <label for="edit-image_url" class="block text-sm font-semibold text-gray-700 mb-1">URL de l'image de couverture</label>
+                    <input type="text" id="edit-image_url" name="image_url" class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 px-3 transition duration-200">
                 </div>
                 <div>
-                    <label for="edit-disponibilite" class="block text-sm font-medium text-gray-700">Disponibilité</label>
-                    <input type="number" id="edit-disponibilite" name="disponibilite" min="0" class="mt-1 w-full rounded-xl border-gray-300 shadow-sm py-2 px-3 focus:border-blue-500 focus:ring-blue-500 transition duration-200">
+                    <label for="edit-disponibilite" class="block text-sm font-semibold text-gray-700 mb-1">Stock disponible</label>
+                    <input type="number" id="edit-disponibilite" name="disponibilite" class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 px-3 transition duration-200" required>
                 </div>
-                <div class="flex justify-end space-x-4 pt-4">
-                    <button type="button" onclick="closeEditModal()" class="py-2 px-6 bg-gray-500 text-white font-medium rounded-xl hover:bg-gray-600 transition duration-300">
-                        Annuler
-                    </button>
-                    <button type="submit" class="py-2 px-6 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition duration-300">
-                        Sauvegarder
-                    </button>
-                </div>
+                <button type="submit" class="w-full primary-button text-white font-bold py-3 px-6 rounded-2xl shadow-xl hover:scale-105 transform transition-all duration-300">
+                    <i class="fas fa-save mr-2"></i>Sauvegarder les modifications
+                </button>
             </form>
         </div>
     </div>
 </div>
 
 <script>
-    function showEditModal(id, titre, auteur, description, imageUrl, disponibilite) {
+    function openEditModal(id, titre, auteur, description, imageUrl, disponibilite) {
         document.getElementById('edit-id').value = id;
         document.getElementById('edit-titre').value = titre;
         document.getElementById('edit-auteur').value = auteur;
@@ -123,13 +127,25 @@
         document.getElementById('edit-disponibilite').value = disponibilite;
         const modal = document.getElementById('edit-modal');
         modal.classList.remove('hidden');
-        setTimeout(() => modal.classList.add('opacity-100'), 10);
     }
 
     function closeEditModal() {
         const modal = document.getElementById('edit-modal');
-        modal.classList.remove('opacity-100');
-        setTimeout(() => modal.classList.add('hidden'), 300);
+        modal.classList.add('hidden');
+    }
+
+    async function deleteLivre(livreId) {
+        if (confirm("Êtes-vous sûr de vouloir supprimer ce livre ?")) {
+            const response = await fetch(`/api/livres/${livreId}`, {
+                method: 'DELETE'
+            });
+            if (response.ok) {
+                alert('Livre supprimé avec succès');
+                window.location.reload();
+            } else {
+                alert('Erreur lors de la suppression du livre');
+            }
+        }
     }
 
     document.getElementById('add-livre-form').addEventListener('submit', async function(e) {
@@ -148,7 +164,7 @@
         e.preventDefault();
         const livreId = document.getElementById('edit-id').value;
         const formData = new FormData(this);
-        const response = await fetch(`/api/livres/update/${livreId}`, { method: 'POST', body: formData });
+        const response = await fetch(`/api/livres/${livreId}`, { method: 'PUT', body: formData });
         if (response.ok) {
             alert('Livre mis à jour avec succès');
             window.location.reload();

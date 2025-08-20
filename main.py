@@ -345,6 +345,33 @@ async def profil_page(request: Request, db: Session = Depends(get_db)):
     reservations = db.query(Reservation).filter(Reservation.id_adherent == user.id).all()
     return templates.TemplateResponse("profil.html", {"request": request, "user": user, "emprunts": emprunts, "reservations": reservations})
 
+@app.get("/mes-emprunts", response_class=HTMLResponse)
+async def mes_emprunts_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: Adherent = Depends(get_current_user)
+):
+    # On récupère les emprunts de l’utilisateur connecté
+    emprunts = db.query(Emprunt).filter(Emprunt.id_adherent == user.id).all()
+    
+    # On prépare les données pour le template
+    emprunts_out = []
+    for emprunt in emprunts:
+        emprunts_out.append({
+            "id": emprunt.id,
+            "livre_titre": emprunt.livre.titre,
+            "date_emprunt": emprunt.date_emprunt,
+            "date_retour_prevue": emprunt.date_retour_prevue,
+            "date_retour_effectif": emprunt.date_retour_effectif,
+            "statut": "en retard" if emprunt.date_retour_prevue < datetime.utcnow() and not emprunt.date_retour_effectif else emprunt.statut
+        })
+
+    # On envoie les données au template
+    return templates.TemplateResponse(
+        "mes_emprunts.html",
+        {"request": request, "user": user, "emprunts": emprunts_out}
+    )
+
 @app.get("/recommandations", response_class=HTMLResponse)
 async def recommandations_page(request: Request, user: Adherent = Depends(get_current_user)):
     return templates.TemplateResponse("recommandation_par_description.html", {"request": request, "user": user})
@@ -370,7 +397,7 @@ async def admin_emprunts_page(request: Request, db: Session = Depends(get_db), a
 async def admin_stats_page(request: Request, admin: Adherent = Depends(get_current_admin)):
     return templates.TemplateResponse("admin/statistiques.html", {"request": request, "user": admin})
 
-@app.post("/logout")
+@app.get("/logout")
 async def logout(response: Response):
     response.delete_cookie(key="access_token")
     return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)

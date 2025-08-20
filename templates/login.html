@@ -1,24 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Connexion{% endblock %}
 {% block content %}
-<div class="min-h-screen flex items-center justify-center relative">
-    <!-- Decorative floating elements -->
-    <div class="absolute top-20 left-20 floating-element">
-        <div class="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
-            <i class="fas fa-book text-white text-2xl"></i>
-        </div>
-    </div>
-    <div class="absolute top-40 right-32 floating-element" style="animation-delay: 2s;">
-        <div class="w-12 h-12 bg-white/15 rounded-full flex items-center justify-center">
-            <i class="fas fa-bookmark text-white text-lg"></i>
-        </div>
-    </div>
-    <div class="absolute bottom-32 left-32 floating-element" style="animation-delay: 4s;">
-        <div class="w-14 h-14 bg-white/10 rounded-full flex items-center justify-center">
-            <i class="fas fa-users text-white text-xl"></i>
-        </div>
-    </div>
-    
+<div class="min-h-screen flex items-center justify-center relative">    
     <div class="w-full max-w-md animate-bounce-in">
         <div class="glass-effect rounded-3xl p-8 shadow-2xl border border-white/30 hover-lift">
             <!-- Header -->
@@ -76,24 +59,6 @@
             </div>
         </div>
         
-        <!-- Stats Cards -->
-        <div class="grid grid-cols-3 gap-4 mt-8 animate-fade-in" style="animation-delay: 0.5s;">
-            <div class="glass-effect rounded-2xl p-4 text-center border border-white/20 hover-lift">
-                <i class="fas fa-book text-blue-500 text-2xl mb-2"></i>
-                <p class="text-sm font-semibold text-gray-700">1000+</p>
-                <p class="text-xs text-gray-500">Livres</p>
-            </div>
-            <div class="glass-effect rounded-2xl p-4 text-center border border-white/20 hover-lift">
-                <i class="fas fa-users text-green-500 text-2xl mb-2"></i>
-                <p class="text-sm font-semibold text-gray-700">500+</p>
-                <p class="text-xs text-gray-500">Membres</p>
-            </div>
-            <div class="glass-effect rounded-2xl p-4 text-center border border-white/20 hover-lift">
-                <i class="fas fa-robot text-purple-500 text-2xl mb-2"></i>
-                <p class="text-sm font-semibold text-gray-700">IA</p>
-                <p class="text-xs text-gray-500">Suggestions</p>
-            </div>
-        </div>
     </div>
 </div>
 

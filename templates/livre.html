@@ -8,28 +8,63 @@
     <div class="md:w-2/3">
         <h1 class="text-5xl font-extrabold text-gray-900 leading-tight">{{ livre.titre }}</h1>
         <p class="text-xl text-gray-600 mt-2 font-light">Auteur : <span class="font-medium">{{ livre.auteur }}</span></p>
-        
+        <p class="mt-4 text-gray-700 leading-relaxed text-lg">{{ livre.description }}</p>
+
         <div class="flex items-center mt-6">
             <p class="text-2xl font-semibold text-gray-700 mr-4">Statut :</p>
             {% if livre.disponibilite > 0 %}
                 <span class="px-4 py-2 text-sm font-bold text-green-700 bg-green-100 rounded-full flex items-center shadow-sm">
                     <i class="fas fa-check-circle mr-2"></i>Disponible
                 </span>
-                <button id="reserver-btn" data-livre-id="{{ livre.id }}" class="ml-6 bg-blue-600 text-white font-bold py-3 px-6 rounded-full hover:bg-blue-700 transition-colors duration-300 shadow-lg transform hover:scale-105">
-                    <i class="fas fa-bookmark mr-2"></i>Réserver
-                </button>
+                {% if user and user.role == 'adherent' %}
+                    <button id="emprunter-btn" data-livre-id="{{ livre.id }}" class="ml-6 bg-blue-600 text-white font-bold py-3 px-6 rounded-full hover:bg-blue-700 transition-colors duration-300 shadow-lg transform hover:scale-105">
+                        <i class="fas fa-handshake mr-2"></i>Emprunter
+                    </button>
+                {% endif %}
             {% else %}
                 <span class="px-4 py-2 text-sm font-bold text-red-700 bg-red-100 rounded-full flex items-center shadow-sm">
                     <i class="fas fa-times-circle mr-2"></i>Réservé
                 </span>
             {% endif %}
         </div>
-        <div id="reservation-message" class="mt-4 text-center font-medium"></div>
-        
-        <div class="mt-8 prose max-w-none text-gray-700">
-            <h2 class="text-2xl font-bold border-b pb-2 mb-4 text-gray-800">Description</h2>
-            <p class="leading-relaxed text-justify">{{ livre.description }}</p>
-        </div>
+        <div id="emprunt-message" class="mt-4 text-center font-medium"></div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const emprunterBtn = document.getElementById('emprunter-btn');
+        const messageDiv = document.getElementById('emprunt-message');
+
+        if (emprunterBtn) {
+            emprunterBtn.addEventListener('click', async () => {
+                const livreId = emprunterBtn.dataset.livreId;
+                messageDiv.innerHTML = 'Emprunt en cours...';
+                messageDiv.className = 'mt-4 text-center font-medium text-gray-500';
+
+                try {
+                    const response = await fetch(`/api/emprunter_directement/${livreId}`, {
+                        method: 'POST',
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        messageDiv.innerHTML = data.message;
+                        messageDiv.className = 'mt-4 text-center font-bold text-green-600';
+                        emprunterBtn.disabled = true;
+                        emprunterBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    } else {
+                        messageDiv.innerHTML = `Erreur : ${data.detail}`;
+                        messageDiv.className = 'mt-4 text-center font-bold text-red-600';
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    messageDiv.innerHTML = 'Erreur de connexion. Veuillez réessayer.';
+                    messageDiv.className = 'mt-4 text-center font-bold text-red-600';
+                }
+            });
+        }
+    });
+</script>
 {% endblock %}
