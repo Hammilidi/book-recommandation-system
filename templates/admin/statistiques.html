@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - Statistiques</title>
+    <link rel="stylesheet" href="/static/statistiques.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1, h2 { color: #333; }
+        canvas { max-width: 600px; margin-bottom: 40px; }
+        a { display: inline-block; margin-top: 20px; text-decoration: none; color: blue; }
+        hr { margin: 40px 0; }
+    </style>
+</head>
+<body>
+    <h1>📊 Tableau de bord - Statistiques</h1>
+
+    <h2>Top 5 livres les plus empruntés</h2>
+    <canvas id="topLivres" width="600" height="400"></canvas>
+    <hr>
+
+    <h2>Taux de disponibilité global</h2>
+    <canvas id="tauxDisponibilite" width="400" height="400"></canvas>
+    <hr>
+
+    <h2>Nombre de retards</h2>
+    <canvas id="retards" width="400" height="300"></canvas>
+
+    <a href="/admin/dashboard">⬅ Retour au Dashboard</a>
+
+    <script>
+    fetch('/api/statistiques')
+        .then(res => res.json())
+        .then(data => {
+            if (!data) {
+                console.error("Aucune donnée reçue !");
+                return;
+            }
+
+            // Top livres empruntés
+            const ctx1 = document.getElementById('topLivres').getContext('2d');
+            new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: data.top_livres.map(l => l.titre),
+                    datasets: [{
+                        label: 'Nombre d\'emprunts',
+                        data: data.top_livres.map(l => l.nb_emprunts),
+                        backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: { responsive: true, scales: { y: { beginAtZero: true } } }
+            });
+
+            // Taux de disponibilité
+            const ctx2 = document.getElementById('tauxDisponibilite').getContext('2d');
+            new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Disponibles', 'Indisponibles'],
+                    datasets: [{
+                        data: [data.taux_disponibilite, 100 - data.taux_disponibilite],
+                        backgroundColor: ['#28a745', '#dc3545']
+                    }]
+                },
+                options: { responsive: true }
+            });
+
+            // Nombre de retards
+            const ctx3 = document.getElementById('retards').getContext('2d');
+            new Chart(ctx3, {
+                type: 'bar',
+                data: {
+                    labels: ['Retards'],
+                    datasets: [{
+                        label: 'Nombre',
+                        data: [data.nb_retards],
+                        backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: { responsive: true, scales: { y: { beginAtZero: true } } }
+            });
+        })
+        .catch(err => console.error("❌ Erreur lors du chargement des statistiques:", err));
+    </script>
+</body>
+</html>

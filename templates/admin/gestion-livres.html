@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - Gestion Livres</title>
+    <link rel="stylesheet" href="/static/gestion-livres.css">
+</head>
+<body>
+    <h1>Gestion des livres</h1>
+
+    <h2>Ajouter un livre</h2>
+    <form action="/admin/livres/add" method="post">
+        <input type="text" name="titre" placeholder="Titre" required>
+        <input type="text" name="description" placeholder="Description" required>
+        <input type="number" step="0.01" name="prix" placeholder="Prix" required>
+        <input type="text" name="image" placeholder="URL Image" required>
+        <input type="number" name="disponibilite" placeholder="Disponibilité" required>
+        <input type="number" name="note" placeholder="Note" required>
+        <button type="submit">Ajouter</button>
+    </form>
+
+    <h2>Liste des livres</h2>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Titre</th>
+                <th>Description</th>
+                <th>Prix</th>
+                <th>Disponibilité</th>
+                <th>Note</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for livre in livres %}
+            <tr>
+                <td>{{ livre.id }}</td>
+                <td>{{ livre.titre }}</td>
+                <td>{{ livre.description }}</td>
+                <td>{{ livre.prix }}</td>
+                <td>{{ livre.disponibilite }}</td>
+                <td>{{ livre.note }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="/admin/dashboard">Retour au Dashboard</a>
+</body>
+</html>

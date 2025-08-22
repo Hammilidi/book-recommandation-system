@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - Gestion Adhérents</title>
+    <link rel="stylesheet" href="/static/gestion-adherents.css">
+</head>
+<body>
+    <h1>Gestion des adhérents</h1>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nom</th>
+                <th>Email</th>
+                <th>Rôle</th>
+                <th>Date Inscription</th>
+                <th>Actif</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in adherents %}
+            <tr>
+                <td>{{ user.id }}</td>
+                <td>{{ user.nom }}</td>
+                <td>{{ user.email }}</td>
+                <td>{{ user.role }}</td>
+                <td>{{ user.date_inscription }}</td>
+                <td>{{ 'Oui' if user.actif else 'Non' }}</td>
+                <td>
+                    <form action="/admin/adherents/delete/{{ user.id }}" method="post" style="display:inline">
+                        <button type="submit" onclick="return confirm('Supprimer cet adhérent ?')">Supprimer</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <a href="/admin/dashboard">Retour au Dashboard</a>
+</body>
+</html>

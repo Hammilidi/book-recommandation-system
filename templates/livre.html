@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ livre.titre }}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<h2>{{ livre.titre }}</h2>
+<img src="{{ livre.image_url }}" width="150">
+<p>{{ livre.description }}</p>
+<p><b>Disponibilité:</b> {{ "Disponible" if livre.stock > 0 else "Indisponible" }}</p>
+{% if livre.stock > 0 %}
+<form method="post" action="/api/reservations">
+    <input type="hidden" name="id_livre" value="{{ livre.id }}">
+    <input type="hidden" name="id_adherent" value="1"> <!-- temporaire -->
+    <button type="submit">Réserver</button>
+</form>
+{% endif %}
+<a href="/api/livres/home">Retour</a>
+</body>
+</html>

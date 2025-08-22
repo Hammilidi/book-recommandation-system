@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Profil</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<h2>Mon profil</h2>
+<p>Nom: {{ adherent.nom }}</p>
+<p>Email: {{ adherent.email }}</p>
+<h3>Mes emprunts</h3>
+<ul>
+{% for e in emprunts %}
+    <li>{{ e.livre }} (Retour prévu: {{ e.date_retour_prevue }}) {% if e.retard %}<span style="color:red">En retard</span>{% endif %}</li>
+{% endfor %}
+</ul>
+</body>
+</html>

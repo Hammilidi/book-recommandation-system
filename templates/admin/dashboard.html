@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - Dashboard</title>
+    <link rel="stylesheet" href="/static/dashborad.css">
+</head>
+<body class="dashboard-page">
+<header class="dashboard-header">
+    <div class="navbar">
+        <img src="/static/logo.png" alt="Logo" class="logo">
+        <h1 class="title">Dashboard Admin</h1>
+    </div>
+</header>
+
+    <main class="dashboard-content">
+        <section class="stats">
+            <div class="card">
+                <h2>Utilisateurs</h2>
+                <p class="stat-value">{{ total_users }}</p>
+            </div>
+            <div class="card">
+                <h2>Livres</h2>
+                <p class="stat-value">{{ total_books }}</p>
+            </div>
+        </section>
+
+        <nav class="dashboard-nav">
+            <a class="nav-link" href="/admin/gestion-adherents">👥 Gestion Adhérents</a>
+            <a class="nav-link" href="/admin/gestion-livres">📖 Gestion Livres</a>
+            <a class="nav-link" href="/admin/emprunts">📦 Gestion Emprunts</a>
+            <a class="nav-link" href="/admin/statistiques">📊 Statistiques</a>
+        </nav>
+    </main>
+</body>
+</html>

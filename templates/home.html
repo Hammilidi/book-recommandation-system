@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Accueil</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<h2>Liste des livres</h2>
+
+<!-- Barre de recherche -->
+<form method="get" action="/api/livres/home">
+    <input type="text" name="search" placeholder="Rechercher un livre...">
+    <button type="submit">Rechercher</button>
+</form>
+
+<!-- Grille des livres -->
+<div class="grid">
+{% for livre in livres %}
+    <div class="card">
+        <img src="{{ livre.image_url }}" alt="Couverture" width="100">
+        <h3>{{ livre.titre }}</h3>
+
+        <!-- Correction ici -->
+        <p>
+            {{ "Disponible ✅" if livre.disponibilite > 0 else "Indisponible ❌" }}
+        </p>
+
+        <a href="/api/livres/{{ livre.id }}">Voir détails</a>
+    </div>
+{% endfor %}
+</div>
+</body>
+</html>

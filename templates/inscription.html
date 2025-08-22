@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Inscription</title>
+</head>
+<body>
+    <h2>Créer un compte</h2>
+    <form action="/api/register" method="post">
+        <label>Nom complet :</label>
+        <input type="text" name="nom" required><br><br>
+
+        <label>Email :</label>
+        <input type="email" name="email" required><br><br>
+
+        <label>Mot de passe :</label>
+        <input type="password" name="password" required><br><br>
+
+        <label>Confirmer mot de passe :</label>
+        <input type="password" name="confirm_password" required><br><br>
+
+        <button type="submit">S'inscrire</button>
+    </form>
+
+    {% if error %}
+        <p style="color:red;">{{ error }}</p>
+    {% endif %}
+</body>
+</html>

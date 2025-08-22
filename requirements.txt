@@ -1,0 +1,2 @@
+fastapi uvicorn[standard] sqlalchemy psycopg[binary] alembic jinja2 python-dotenv
+selenium webdriver-manager pandas scikit-learn joblib scipy python-multipart passlib[bcrypt] python-jose[cryptography]

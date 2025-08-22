@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - Gestion Emprunts</title>
+    <link rel="stylesheet" href="/static/emprunts.css">
+</head>
+<body>
+    <h1>Enregistrer un emprunt</h1>
+    <form action="/api/emprunts" method="post">
+        <input type="number" name="id_adherent" placeholder="ID Adhérent" required>
+        <input type="number" name="id_livre" placeholder="ID Livre" required>
+        <input type="date" name="date_retour_prevue" placeholder="Date retour prévue" required>
+        <button type="submit">Enregistrer Emprunt</button>
+    </form>
+
+    <h1>Enregistrer un retour</h1>
+    <form action="/api/retours" method="post">
+        <input type="number" name="id_emprunt" placeholder="ID Emprunt" required>
+        <button type="submit">Enregistrer Retour</button>
+    </form>
+
+    <a href="/admin/dashboard">Retour au Dashboard</a>
+</body>
+</html>
