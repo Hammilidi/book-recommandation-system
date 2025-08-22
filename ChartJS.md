@@ -125,3 +125,4 @@
 ## 📚 Conclusion
 
 Chart.js est une excellente bibliothèque pour les **débutants** comme pour les projets rapides de **visualisation de données**. Elle permet de créer rapidement des graphiques interactifs et modernes, sans avoir besoin de connaissances avancées en JavaScript.
+
